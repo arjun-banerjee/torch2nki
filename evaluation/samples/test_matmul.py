@@ -55,6 +55,7 @@ def test_torch_matmul(device):
 
   # Compare results
   print("Checking correctness of nki_matmul_basic")
+  print(output_small)
   if torch.allclose(output_small_torch, output_small, atol=1e-4, rtol=1e-2):
     print("NKI and Torch match")
   else:

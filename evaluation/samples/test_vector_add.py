@@ -43,24 +43,24 @@ def find_function_name_in_code(kernel_code):
 
 def main():
     # Extract the kernel code from the LLM-generated file
-    file_path = "../../generation/samples/vector_add.txt"  # TODO: change to correct file path or make file path an arg
+    #   file_path = "../../generation/samples/vector_add.txt"  # TODO: change to correct file path or make file path an arg
     
     # Extract the actual code from the LLM output
-    kernel_code = extract_kernel_from_llm_response(file_path)
+    #kernel_code = extract_kernel_from_llm_response(file_path)
 
     # Extract the defined kernel name from the LLM output
-    func_name = find_function_name_in_code(kernel_code)
+    #func_name = find_function_name_in_code(kernel_code)
     
     # Sanity check
-    print(kernel_code)
-    print(func_name)
+    #print(kernel_code)
+    #print(func_name)
 
     # Dynamically define the kernel
     #exec(kernel_code, globals())
 
     #write kernel code to a python file
-    with open("vector_add.py", "w", encoding="utf-8") as f:
-        f.write(kernel_code)
+    #with open("vector_add.py", "w", encoding="utf-8") as f:
+    #    f.write(kernel_code)
 
 
     #import kernel code
@@ -91,6 +91,8 @@ def main():
         print("NKI and Torch match!")
     else:
         print("NKI and Torch differ!")
+        print(f"Torch output: {output_torch}")
+        print(f"NKI output: {output_nki}")
 
 if __name__ == "__main__":
     main()
