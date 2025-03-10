@@ -69,8 +69,7 @@ def nki_einsum_kernel_naive(einsum_inputs, contract_str):
             # then add to accum.
             prod_val = 1.0
             
-            # Each input has a "subscript string" (e.g. "pi", "qj", "ijkl", etc.)
-            # We'll figure out each dimension's coordinate from either out_coords or sum_coords.
+            
             
             for inp, idx_str in zip(einsum_inputs, input_idxs):
                 #print(idx_str)

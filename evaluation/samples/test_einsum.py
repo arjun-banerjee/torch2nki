@@ -11,9 +11,9 @@ def main():
 
     # Create random 1D tensors
     np.random.seed(0)
-    lhs_small = torch.rand((5,4,3,3))
-    rhs_small = torch.rand((3,3,4))
-    contract_str = "ijlk,klm->ijm"
+    lhs_small = torch.rand((5,4,3))
+    rhs_small = torch.rand((5,6,4))
+    contract_str = "ijk,ilj->kl"
     einsum_inputs = [lhs_small, rhs_small]
 
 
