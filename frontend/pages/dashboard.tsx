@@ -1,5 +1,7 @@
-import React, { useState } from "react";import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import "../styles/dashboard.css";
 
 interface Operator {
     name: string;
@@ -103,40 +105,52 @@ const operatorGroups: { [key: string]: Operator[] } = {
     { name: "linalg_triangular_solve", description: "Solves a triangular system of equations." }
   ]
 };
-
-
 const Dashboard: React.FC = () => {
-    const [results, setResults] = useState<{ [key: string]: BenchmarkResult | null }>({});
-  
-    const runBenchmark = async (operator: string): Promise<void> => {
-      try {
-        const response = await fetch("/api/run-benchmark", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ operator })
-        });
-        const result: BenchmarkResult = await response.json();
-        setResults((prev) => ({ ...prev, [operator]: result }));
-      } catch (error) {
-        console.error(`Error running benchmark for ${operator}:`, error);
-      }
-    };
-  
-    return (
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">NKI Kernel Benchmarking</h1>
+  const [results, setResults] = useState<{ [key: string]: BenchmarkResult | null }>({});
+  const [darkMode, setDarkMode] = useState(false);
+
+  const runBenchmark = async (operator: string): Promise<void> => {
+    try {
+      const response = await fetch("/api/run-benchmark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operator })
+      });
+      const result: BenchmarkResult = await response.json();
+      setResults((prev) => ({ ...prev, [operator]: result }));
+    } catch (error) {
+      console.error(`Error running benchmark for ${operator}:`, error);
+    }
+  };
+
+  // Toggle dark mode on/off
+  const handleToggleDarkMode = () => {
+    setDarkMode((prevMode) => !prevMode);
+  };
+
+  return (
+    <div className={darkMode ? "dark-mode" : ""}>
+      <div className="dashboard">
+        {/* Toggle Button */}
+        <Button onClick={handleToggleDarkMode}>
+          Switch to {darkMode ? "Light" : "Dark"} Mode
+        </Button>
+
+        <h1>NKI Kernel Benchmarking</h1>
         {Object.entries(operatorGroups).map(([group, operators]) => (
-          <div key={group} className="mb-6">
-            <h2 className="text-xl font-semibold mb-2">{group}</h2>
-            <div className="grid grid-cols-3 gap-4">
+          <div key={group} className="operator-group">
+            <h2>{group}</h2>
+            <div className="operator-grid">
               {operators.map((operator) => (
-                <Card key={operator.name} className="mb-2 p-2">
+                <Card key={operator.name} className="operator-card">
                   <CardContent>
-                    <p className="text-lg font-semibold">{operator.name}</p>
-                    <p className="text-sm text-gray-600 mb-2">{operator.description}</p>
-                    <Button onClick={() => runBenchmark(operator.name)}>Run Benchmark</Button>
+                    <p className="operator-card-title">{operator.name}</p>
+                    <p className="operator-card-desc">{operator.description}</p>
+                    <Button onClick={() => runBenchmark(operator.name)}>
+                      <span className="btn-text">Run Benchmark</span>
+                    </Button>
                     {results[operator.name] && (
-                      <div className="mt-2 p-2 border rounded bg-gray-100 text-sm">
+                      <div className="result-box">
                         {Object.entries(results[operator.name] ?? {}).map(([key, value]) => (
                           <p key={key}><strong>{key}:</strong> {value}</p>
                         ))}
@@ -149,7 +163,8 @@ const Dashboard: React.FC = () => {
           </div>
         ))}
       </div>
-    );
-  };
-  
-  export default Dashboard;
+    </div>
+  );
+};
+
+export default Dashboard;

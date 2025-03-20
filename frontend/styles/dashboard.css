@@ -1,0 +1,142 @@
+.dashboard h1,
+.dashboard h2,
+.dashboard h3,
+.dashboard h4,
+.dashboard h5,
+.dashboard h6,
+.dashboard strong,
+.dashboard b {
+  font-weight: normal !important;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dashboard {
+  padding: 1rem;
+  background-color: #f3efe7; /* Light background */
+  color: #111827; /* Dark text */
+}
+
+/* For the button, override the default centering */
+.dashboard button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start; /* Aligns text to the left inside the button */
+  height: 40px;                /* Fixed height */
+  background: transparent;     /* Remove background */
+  border: none;
+  padding: 0.5rem 1rem;
+  padding-left: 0;
+  cursor: pointer;
+  
+  /* Underline styling */
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  
+  font-weight: normal;
+  transition: font-weight 0.05s ease, text-decoration-thickness 0.2s ease;
+}
+
+/* If you're wrapping the button text in a span */
+.dashboard button .btn-text {
+  text-decoration: inherit;
+  font-weight: inherit;
+  transition: inherit;
+}
+
+/* On hover, make text and underline bolder */
+.dashboard button:hover {
+  font-weight: bold;
+  text-decoration-thickness: 2px;
+}
+
+
+.dashboard h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.operator-group {
+  margin-bottom: 1.5rem;
+}
+
+.operator-group h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.operator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.operator-card {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #bcbcbc;
+  border-radius: 0.5rem;
+  background-color: #f6f5f0;
+  font-weight: 200;
+  text-align: left;
+  display: flex;                  /* Use flex layout */
+  flex-direction: column;         /* Stack elements vertically */
+  align-items: flex-start;        /* Align items to the left */
+  justify-content: flex-start;    /* Also left-justify if needed */
+}
+
+
+.operator-card-title {
+  font-size: 1.125rem;
+  margin-bottom: 0.25rem;
+  font-weight: normal !important;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.operator-card-desc {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.result-box {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background-color: #f6f5f0;
+  font-size: 0.875rem;
+}
+
+
+/* Dark Mode Styles */
+.dark-mode .dashboard {
+  background-color: #1f2937; /* Dark background */
+  color: #f9fafb; /* Light text */
+}
+.dark-mode .dashboard button {
+  color: #8ec3ff;            /* Dark mode text color */
+}
+.dark-mode .operator-card {
+  border-color: #374151;
+  background-color: #111827;
+}
+.dark-mode .operator-card-title {
+  color: #f9fafb;
+}
+.dark-mode .operator-card-desc {
+  color: #d1d5db;
+}
+.dark-mode .result-box {
+  border-color: #4b5563;
+  background-color: #374151;
+}
+
+
