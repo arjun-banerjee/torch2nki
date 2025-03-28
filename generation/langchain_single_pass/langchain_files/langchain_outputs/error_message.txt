@@ -1,17 +1,17 @@
 Reading LLM output from: /home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/vector_add.txt
-Read 1642 characters from file
-First 100 characters: *** The "Insufficient rank!" error continues to suggest that the dimensionality of the output tensor...
-Extracted 1094 characters of kernel code
-First 100 characters of extracted code: import neuronxcc.nki.language as nl
-from neuronxcc import nki
+Read 971 characters from file
+First 100 characters: ***The error 'Expected 1 indices, got 2' occurs because we're trying to use 2D indexing on a 1D tens...
+Extracted 708 characters of kernel code
+First 100 characters of extracted code: from neuronxcc import nki
+import neuronxcc.nki.language as nl
 
 @nki.jit
-def vector_add_kernel(v1, v2...
-Detected function name: vector_add_kernel
+def nki_vector_add(v1_tensor...
+Detected function name: nki_vector_add
 Wrote kernel code to: vector_add_kernel.py
-Also wrote to unique module: vector_add_kernel_1742805467.py
-Successfully imported module: vector_add_kernel_1742805467
-Using detected function: vector_add_kernel
+Also wrote to unique module: vector_add_kernel_1743152660.py
+Successfully imported module: vector_add_kernel_1743152660
+Using detected function: nki_vector_add
 Running NKI kernel simulation...
 ERROR: Insufficient rank!
 
@@ -27,6 +27,6 @@ Traceback (most recent call last):
   File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
   File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
   File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
-  File "/home/ubuntu/torch2nki/vector_add_kernel_1742805467.py", line 20, in vector_add_kernel
-    result = nl.zeros((size,), dtype=v1.dtype)
+  File "/home/ubuntu/torch2nki/vector_add_kernel_1743152660.py", line 13, in nki_vector_add
+    result = nl.zeros((v1_tensor.shape[0],), dtype=v1_tensor.dtype)
 AssertionError: Insufficient rank!

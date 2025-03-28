@@ -25,37 +25,39 @@ def vector_add(v1, v2):
 Don't use libnrt.so.1
 
 Make sure to return the output. Make sure to import nki: from neuronxcc import nki
+YOU DO NOT NEED TO PUT THE RETURN VARIABLE IN THE PARAMETERS. SIMPLY RETRUN RESULT AFTER STORING THE ANSWER
+FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "return result" AS THE LAST LINE OF THE KERNEL.
+YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
+DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-
+Here is an example for the dot product vector. The code for the vector add does not have to relate
+at all or follow the same format, I am simply giving it to you so can understand how the inputs and outputs
+to nki kernels work. for example, we should always be returning a result especially.
+Specifically, you do not need to use for i in range for this implementation. use the implementation 
+from the documentation and see if you can do it more simply.
 
 ```python
-import neuronxcc.nki.language as nl
 from neuronxcc import nki
+import neuronxcc.nki.language as nl
 
 @nki.jit
-def vector_add_kernel(v1, v2):
-    # Assume v1 and v2 are 1D tensors of the same size
-    size = v1.shape[0]
-
-    # Create an output tensor of the same size
-    result = nl.zeros(size, dtype=v1.dtype)
-
-    # Define the range for the loop
-    for i in nl.arange(size):
-        # Load the elements from the input tensors
-        a = nl.load(v1[i:i+1])
-        b = nl.load(v2[i:i+1])
+def nki_dot_product(a_tensor, b_tensor):
+    # Ensure both tensors are 1D
+    if a_tensor.shape[0] != b_tensor.shape[0]:
+        raise ValueError("Vectors must be of the same length")
         
-        # Perform element-wise addition
-        c = nl.add(a, b)
+    # Initialize a scalar to hold the sum result
+    sum_result = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
 
-        # Store the result back into the output tensor
-        nl.store(result[i:i+1], c)
+    # Process the dot product
+    for i in nl.affine_range(a_tensor.shape[0]):
+        a_value = nl.load(a_tensor[i])
+        b_value = nl.load(b_tensor[i])
+        sum_result += nl.multiply(a_value, b_value)
 
-    return result
+    return sum_result
 ```
 
-The error "TypeError: 'int' object is not iterable" occurs because nl.zeros(size, dtype=v1.dtype) expects a tuple for the size argument, but you're passing an integer (size).
 
 ### The following is NKI documentation you may find useful:
 Supported Data Types

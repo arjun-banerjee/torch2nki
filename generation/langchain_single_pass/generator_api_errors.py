@@ -281,6 +281,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
             "I dont want the actual code, but be specific so someone that sees the same error message on a different line of code"
             "can implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sure"
             "you are not trying to do the same fixes multiple times. "
+            "When you are changing the code, only change the line with the error message and maybe code that relates. I repeat, only change the line with the error message."
+            "I repeat, I do not want you changing code other than the line with the error and maybe lines that directly relate to that change"
             "Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```"
             "The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. "
             "Then, immediatly after write the python nki code inside triple backticks ``` ```."
