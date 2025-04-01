@@ -46,7 +46,8 @@ for op, in operations:
     # 1. Get NumPy kernel
     numpy_prompt = f"""
     Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized
+    - Be vectorized.
+    - Not use built-in functions for calculations.
     - Not use NumPy or any external libraries.
     - Include a short docstring for the function.
 
