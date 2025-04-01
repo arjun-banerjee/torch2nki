@@ -1,68 +1,43 @@
-import openai
-from openai import OpenAI
-import os
-import time
 
-operations = [
-    ("view_as_real",),
-    ("view_as_complex",),
-    ("copysign",),
-    ("nextafter",),
-    ("hypot",),
-    ("log1p",),
-    ("expm1",),
-    ("frexp",),
-    ("ldexp",),
-    ("logaddexp",),
-    ("logaddexp2",),
-    ("sinc",),
-    ("xlogy",),
-    ("edit_distance",),
-    ("hamming_distance",)
-]
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def call_openai(prompt, model="gpt-4", max_tokens=800):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
-
-for op, in operations:
-    print(f"Processing operation: {op}")
-
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
-    - Include a short docstring for the function.
-
-    """
-
-    try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
-
-    # 2. Get NKI kernel using numpy kernel
-    nki_prompt = f"""
-Generate a custom kernel for {op} using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for asin using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation {op}:
+Here is the NumPy kernel for the operation asin:
 
-{numpy_kernel}
+Here is a Python function for the operation 'asin' (inverse of sine) using the Taylor series expansion for asin:
+
+```python
+def asin(x):
+    """
+    Calculate the arcsin (inverse of sine) of a number using the Taylor series expansion.
+    :param x: a number (float or integer).
+    :return: the arcsin of x.
+    """
+    result = 0
+    for i in range(100):  # Increase the range for more precision
+        coef = factorial(2*i) / (4**i * (factorial(i))**2)
+        num = x**(2*i + 1) / (2*i + 1)
+        result += coef * num
+    return result
+
+def factorial(n):
+    """
+    Calculate the factorial of a number.
+    :param n: a number (float or integer).
+    :return: the factorial of n.
+    """
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n - 1)
+```
+This function is not vectorized and will only work for scalar inputs. It uses the Taylor series expansion for asin, which is a mathematical method for approximating the value of asin. The Taylor series expansion for asin is:
+
+asin(x) = x + (1/2) * (x^3/3) + (1*3/2*4) * (x^5/5) + (1*3*5/2*4*6) * (x^7/7) + ...
+
+This function is not perfect and has limitations. For example, it will not work well for values of x close to -1 and 1, because the Taylor series expansion for asin does not converge quickly enough near these values. For these values, a different method would be needed to calculate asin accurately.
 
 Don't use libnrt.so.1
 
@@ -72,7 +47,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector {op} does not have to relate
+Here is an example for the dot product vector. The code for the vector asin does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -283,15 +258,3 @@ z = nl.add(x, y, dtype=nl.bfloat16)
 assert z.dtype == nl.bfloat16
 
 Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
-"""
-    
-    try:
-        nki_kernel = call_openai(nki_prompt, max_tokens=1000)
-        with open(f"{op}_nki_prompt.txt", "w") as f:
-            f.write(nki_prompt)
-    except Exception as e:
-        print(f"Failed NKI kernel for {op}: {e}")
-        continue
-
-    time.sleep(1)
-

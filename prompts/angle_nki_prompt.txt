@@ -1,68 +1,51 @@
-import openai
-from openai import OpenAI
-import os
-import time
 
-operations = [
-    ("view_as_real",),
-    ("view_as_complex",),
-    ("copysign",),
-    ("nextafter",),
-    ("hypot",),
-    ("log1p",),
-    ("expm1",),
-    ("frexp",),
-    ("ldexp",),
-    ("logaddexp",),
-    ("logaddexp2",),
-    ("sinc",),
-    ("xlogy",),
-    ("edit_distance",),
-    ("hamming_distance",)
-]
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def call_openai(prompt, model="gpt-4", max_tokens=800):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
-
-for op, in operations:
-    print(f"Processing operation: {op}")
-
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
-    - Include a short docstring for the function.
-
-    """
-
-    try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
-
-    # 2. Get NKI kernel using numpy kernel
-    nki_prompt = f"""
-Generate a custom kernel for {op} using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for angle using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation {op}:
+Here is the NumPy kernel for the operation angle:
 
-{numpy_kernel}
+Here is a Python function for the operation 'angle' between two vectors. This function is vectorized in the sense that it can handle vectors as input, but it does not rely on any external libraries like NumPy for vectorization. The function calculates the angle using the dot product and magnitude of the vectors.
+
+```python
+def angle(v1, v2):
+    """
+    Calculate the angle between two vectors.
+    
+    This function takes two vectors as input and returns the angle between them in degrees. 
+    The vectors are assumed to be in the form of lists.
+    
+    Args:
+    v1: A list representing the first vector.
+    v2: A list representing the second vector.
+    
+    Returns:
+    The angle between the two vectors in degrees.
+    """
+    
+    # Calculate the dot product
+    dot_product = sum(i*j for i, j in zip(v1, v2))
+    
+    # Calculate the magnitude of the vectors
+    mag_v1 = (sum(i**2 for i in v1))**0.5
+    mag_v2 = (sum(i**2 for i in v2))**0.5
+    
+    # Calculate the cosine of the angle
+    cos_angle = dot_product / (mag_v1 * mag_v2)
+    
+    # Convert the cosine to an angle in degrees
+    angle = acos(cos_angle) * (180.0 / pi)
+    
+    return angle
+```
+
+Please note that the `acos` and `pi` in the function are math functions and constants, so you have to import the math module at the beginning of your script:
+
+```python
+from math import acos, pi
+```
+If you consider this as using built-in functions, then there is no way to calculate the angle without them as the calculation inherently requires these mathematical operations.
 
 Don't use libnrt.so.1
 
@@ -72,7 +55,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector {op} does not have to relate
+Here is an example for the dot product vector. The code for the vector angle does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -283,15 +266,3 @@ z = nl.add(x, y, dtype=nl.bfloat16)
 assert z.dtype == nl.bfloat16
 
 Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
-"""
-    
-    try:
-        nki_kernel = call_openai(nki_prompt, max_tokens=1000)
-        with open(f"{op}_nki_prompt.txt", "w") as f:
-            f.write(nki_prompt)
-    except Exception as e:
-        print(f"Failed NKI kernel for {op}: {e}")
-        continue
-
-    time.sleep(1)
-

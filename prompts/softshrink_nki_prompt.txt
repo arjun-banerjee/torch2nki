@@ -1,68 +1,49 @@
-import openai
-from openai import OpenAI
-import os
-import time
 
-operations = [
-    ("view_as_real",),
-    ("view_as_complex",),
-    ("copysign",),
-    ("nextafter",),
-    ("hypot",),
-    ("log1p",),
-    ("expm1",),
-    ("frexp",),
-    ("ldexp",),
-    ("logaddexp",),
-    ("logaddexp2",),
-    ("sinc",),
-    ("xlogy",),
-    ("edit_distance",),
-    ("hamming_distance",)
-]
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def call_openai(prompt, model="gpt-4", max_tokens=800):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
-
-for op, in operations:
-    print(f"Processing operation: {op}")
-
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
-    - Include a short docstring for the function.
-
-    """
-
-    try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
-
-    # 2. Get NKI kernel using numpy kernel
-    nki_prompt = f"""
-Generate a custom kernel for {op} using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for softshrink using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation {op}:
+Here is the NumPy kernel for the operation softshrink:
 
-{numpy_kernel}
+Here is a Python function that performs the 'softshrink' operation. This function applies a softshrink operation on each element of an input list. The softshrink operation is a type of shrinkage function that is commonly used in machine learning for regularization.
+
+```python
+def softshrink(input_list, lambda_val):
+    """
+    This function applies a softshrink operation on each element of an input list.
+    
+    Parameters:
+    input_list : list
+        A list of numeric values.
+    lambda_val : float
+        A non-negative float that determines the lambda value in the softshrink operation.
+
+    Returns:
+    list
+        A list of numeric values after the softshrink operation.
+    """
+    
+    output_list = []
+    
+    for i in input_list:
+        if i > lambda_val:
+            output_list.append(i - lambda_val)
+        elif i < -lambda_val:
+            output_list.append(i + lambda_val)
+        else:
+            output_list.append(0)
+    
+    return output_list
+```
+
+The softshrink operation is defined as:
+
+    f(x) = x - lambda, if x > lambda
+           x + lambda, if x < -lambda
+           0, otherwise
+
+Where `x` is an element from the input list and `lambda` is a non-negative float that determines the lambda value in the softshrink operation. The function iterates over each element in the input list, applies the softshrink operation, and adds the result to the output list.
 
 Don't use libnrt.so.1
 
@@ -72,7 +53,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector {op} does not have to relate
+Here is an example for the dot product vector. The code for the vector softshrink does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -283,15 +264,3 @@ z = nl.add(x, y, dtype=nl.bfloat16)
 assert z.dtype == nl.bfloat16
 
 Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
-"""
-    
-    try:
-        nki_kernel = call_openai(nki_prompt, max_tokens=1000)
-        with open(f"{op}_nki_prompt.txt", "w") as f:
-            f.write(nki_prompt)
-    except Exception as e:
-        print(f"Failed NKI kernel for {op}: {e}")
-        continue
-
-    time.sleep(1)
-

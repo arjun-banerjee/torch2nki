@@ -1,68 +1,37 @@
-import openai
-from openai import OpenAI
-import os
-import time
 
-operations = [
-    ("view_as_real",),
-    ("view_as_complex",),
-    ("copysign",),
-    ("nextafter",),
-    ("hypot",),
-    ("log1p",),
-    ("expm1",),
-    ("frexp",),
-    ("ldexp",),
-    ("logaddexp",),
-    ("logaddexp2",),
-    ("sinc",),
-    ("xlogy",),
-    ("edit_distance",),
-    ("hamming_distance",)
-]
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def call_openai(prompt, model="gpt-4", max_tokens=800):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
-
-for op, in operations:
-    print(f"Processing operation: {op}")
-
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
-    - Include a short docstring for the function.
-
-    """
-
-    try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
-
-    # 2. Get NKI kernel using numpy kernel
-    nki_prompt = f"""
-Generate a custom kernel for {op} using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for copysign using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation {op}:
+Here is the NumPy kernel for the operation copysign:
 
-{numpy_kernel}
+Here is a Python function that performs the 'copysign' operation:
+
+```python
+def copysign(a, b):
+    """
+    This function returns a number that has the magnitude of 'a'
+    and the sign of 'b'. If 'b' is zero, then the sign of 'a' is returned.
+    """
+    if a == 0:
+        return a
+    elif b == 0:
+        return -a if a < 0 else a
+    else:
+        return -abs(a) if b < 0 else abs(a)
+```
+
+This function is vectorized in the sense that it can operate on lists of numbers as well as individual numbers. However, please note that Python does not natively support vectorized operations. Vectorization is a feature of certain libraries such as NumPy. Without using such libraries, you would need to use a loop or a list comprehension to apply this function to each element of a list. 
+
+For example:
+
+```python
+a = [1, -2, 3, -4]
+b = [1, 1, -1, -1]
+result = [copysign(x, y) for x, y in zip(a, b)]
+print(result)  # prints [1, 2, -3, -4]
+```
 
 Don't use libnrt.so.1
 
@@ -72,7 +41,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector {op} does not have to relate
+Here is an example for the dot product vector. The code for the vector copysign does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -283,15 +252,3 @@ z = nl.add(x, y, dtype=nl.bfloat16)
 assert z.dtype == nl.bfloat16
 
 Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
-"""
-    
-    try:
-        nki_kernel = call_openai(nki_prompt, max_tokens=1000)
-        with open(f"{op}_nki_prompt.txt", "w") as f:
-            f.write(nki_prompt)
-    except Exception as e:
-        print(f"Failed NKI kernel for {op}: {e}")
-        continue
-
-    time.sleep(1)
-

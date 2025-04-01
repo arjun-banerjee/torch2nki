@@ -1,68 +1,40 @@
-import openai
-from openai import OpenAI
-import os
-import time
 
-operations = [
-    ("view_as_real",),
-    ("view_as_complex",),
-    ("copysign",),
-    ("nextafter",),
-    ("hypot",),
-    ("log1p",),
-    ("expm1",),
-    ("frexp",),
-    ("ldexp",),
-    ("logaddexp",),
-    ("logaddexp2",),
-    ("sinc",),
-    ("xlogy",),
-    ("edit_distance",),
-    ("hamming_distance",)
-]
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def call_openai(prompt, model="gpt-4", max_tokens=800):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
-
-for op, in operations:
-    print(f"Processing operation: {op}")
-
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
-    - Include a short docstring for the function.
-
-    """
-
-    try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
-
-    # 2. Get NKI kernel using numpy kernel
-    nki_prompt = f"""
-Generate a custom kernel for {op} using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for hinge_embedding_loss using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation {op}:
+Here is the NumPy kernel for the operation hinge_embedding_loss:
 
-{numpy_kernel}
+Here is a Python function for the operation 'hinge_embedding_loss'. The function is vectorized, does not use built-in functions for calculations, and does not use NumPy or any external libraries. 
+
+```python
+def hinge_embedding_loss(y_true, y_pred, delta=1.0):
+    """
+    Computes the hinge embedding loss between y_true and y_pred.
+    
+    Parameters:
+    y_true: list of true values
+    y_pred: list of predicted values
+    delta: optional, default is 1.0
+
+    Returns:
+    hinge embedding loss: float
+    """
+    loss = 0.0
+    for true, pred in zip(y_true, y_pred):
+        if true == 1:
+            loss += pred
+        else:
+            loss += max(0, delta - pred)
+    return loss / len(y_true)
+```
+
+This function calculates the hinge embedding loss, which is a loss function used for measuring the error of a prediction in machine learning models. It is particularly used in situations where the model needs to balance between minimizing the loss and maintaining the model complexity. 
+
+The function takes three parameters: y_true (the true values), y_pred (the predicted values), and delta (a constant value used in the calculation of the loss). It returns the average hinge embedding loss. 
+
+The function iterates over the pairs of true and predicted values. If the true value is 1, it adds the predicted value to the loss. If the true value is not 1, it adds the maximum of 0 and (delta - predicted value) to the loss. Finally, it returns the average loss.
 
 Don't use libnrt.so.1
 
@@ -72,7 +44,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector {op} does not have to relate
+Here is an example for the dot product vector. The code for the vector hinge_embedding_loss does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -283,15 +255,3 @@ z = nl.add(x, y, dtype=nl.bfloat16)
 assert z.dtype == nl.bfloat16
 
 Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
-"""
-    
-    try:
-        nki_kernel = call_openai(nki_prompt, max_tokens=1000)
-        with open(f"{op}_nki_prompt.txt", "w") as f:
-            f.write(nki_prompt)
-    except Exception as e:
-        print(f"Failed NKI kernel for {op}: {e}")
-        continue
-
-    time.sleep(1)
-
