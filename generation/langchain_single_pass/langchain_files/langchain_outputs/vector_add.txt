@@ -1,28 +1,33 @@
-Error generating kernel: An error occurred (ThrottlingException) when calling the InvokeModel operation (reached max retries: 4): Too many tokens, please wait before trying again.
+*** To improve the kernel's flexibility and robustness in handling various input tensor configurations, I will implement explicit broadcasting logic that detects the shapes of the input tensors and adjusts the addition process accordingly, ensuring that the kernel can efficiently compute element-wise sums even when the tensors have differing dimensions. This change will streamline the addition operation and enhance the kernel's capability to manage diverse input scenarios. ***
 
-Traceback (most recent call last):
-  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/generator_api_errors.py", line 551, in generate_kernel_with_direct_docs_and_error_loop
-    improved_generation = enhanced_error_chain.invoke({
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/runnables/base.py", line 3025, in invoke
-    input = context.run(step.invoke, input, config)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 307, in invoke
-    self.generate_prompt(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 843, in generate_prompt
-    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 683, in generate
-    self._generate_with_cache(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 908, in _generate_with_cache
-    result = self._generate(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/chat_models/bedrock.py", line 721, in _generate
-    completion, tool_calls, llm_output = self._prepare_input_and_invoke(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/llms/bedrock.py", line 971, in _prepare_input_and_invoke
-    raise e
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/llms/bedrock.py", line 956, in _prepare_input_and_invoke
-    response = self.client.invoke_model(**request_options)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/client.py", line 570, in _api_call
-    return self._make_api_call(operation_name, kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/context.py", line 124, in wrapper
-    return func(*args, **kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/client.py", line 1031, in _make_api_call
-    raise error_class(parsed_response, operation_name)
-botocore.errorfactory.ThrottlingException: An error occurred (ThrottlingException) when calling the InvokeModel operation (reached max retries: 4): Too many tokens, please wait before trying again.
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_vector_add(v1_tensor, v2_tensor):
+    """
+    Adds two tensors element-wise using NKI, supporting broadcasting.
+    
+    :param v1_tensor: Input tensor for the first vector (1D or broadcastable).
+    :param v2_tensor: Input tensor for the second vector (1D or broadcastable).
+    :return: Result tensor containing the sum of the two tensors.
+    """
+    
+    # Validate input tensors
+    if v1_tensor.ndim < 1 or v2_tensor.ndim < 1:
+        raise ValueError("Input tensors must be at least 1-dimensional")
+
+    # Determine the result shape based on broadcasting rules
+    result_shape = nl.broadcast_shape(v1_tensor.shape, v2_tensor.shape)
+    result = nl.zeros(result_shape, dtype=nl.promote_types(v1_tensor.dtype, v2_tensor.dtype))
+
+    # Load the input tensors
+    v1_tile = nl.load(v1_tensor)
+    v2_tile = nl.load(v2_tensor)
+
+    # Perform element-wise addition using broadcasting
+    nl.store(result, nl.add(v1_tile, v2_tile))
+
+    return result
+```

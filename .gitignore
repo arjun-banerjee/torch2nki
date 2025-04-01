@@ -1,0 +1,8 @@
+# Ignore the langchain output files directory
+/generation/langchain_single_pass/langchain_files/langchain_outputs
+
+# Ignore any __pycache__ directories in the repository
+**/__pycache__/
+
+# Ignore the AWS Neuron PyTorch virtual environment directory
+aws_neuron_venv_pytorch/

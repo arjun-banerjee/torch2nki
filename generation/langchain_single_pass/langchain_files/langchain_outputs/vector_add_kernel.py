@@ -3,23 +3,27 @@ import neuronxcc.nki.language as nl
 
 @nki.jit
 def nki_vector_add(v1_tensor, v2_tensor):
-    if v1_tensor.shape != v2_tensor.shape:
-        raise ValueError("Vectors must be of the same length")
+    """
+    Adds two tensors element-wise using NKI, supporting broadcasting.
     
-    # Create proper indices for 1D operations
-    i_p = nl.arange(v1_tensor.shape[0])
+    :param v1_tensor: Input tensor for the first vector (1D or broadcastable).
+    :param v2_tensor: Input tensor for the second vector (1D or broadcastable).
+    :return: Result tensor containing the sum of the two tensors.
+    """
     
-    # Initialize result with proper dimensionality
-    result = nl.zeros((v1_tensor.shape[0],), dtype=v1_tensor.dtype)
-    
-    # Load vectors with 1D indexing
-    v1_tile = nl.load(v1_tensor[i_p])
-    v2_tile = nl.load(v2_tensor[i_p])
-    
-    # Perform vector addition 
-    temp = nl.add(v1_tile, v2_tile)
-    
-    # Store result
-    nl.store(result[i_p], value=temp)
-    
+    # Validate input tensors
+    if v1_tensor.ndim < 1 or v2_tensor.ndim < 1:
+        raise ValueError("Input tensors must be at least 1-dimensional")
+
+    # Determine the result shape based on broadcasting rules
+    result_shape = nl.broadcast_shape(v1_tensor.shape, v2_tensor.shape)
+    result = nl.zeros(result_shape, dtype=nl.promote_types(v1_tensor.dtype, v2_tensor.dtype))
+
+    # Load the input tensors
+    v1_tile = nl.load(v1_tensor)
+    v2_tile = nl.load(v2_tensor)
+
+    # Perform element-wise addition using broadcasting
+    nl.store(result, nl.add(v1_tile, v2_tile))
+
     return result

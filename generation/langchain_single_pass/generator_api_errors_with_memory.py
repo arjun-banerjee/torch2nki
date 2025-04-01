@@ -628,18 +628,21 @@ def generate_kernel_with_direct_docs_and_error_loop(
 if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
-    system_prompt_path = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
-    user_prompt_path = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/user_prompt_langchain.txt"
-    output_address = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/vector_add.txt"  # Raw OpenAI output
-    kernel_module_path = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/vector_add_kernel.py"  # Kernel module file
-    test_script_path = "/home/ubuntu/torch2nki/evaluation/samples/test_vector_add.py"
-    test_script_output = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/error_message.txt"
-    reasoning_log_path = "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/reasoning_log.txt"
+    system_base = "/home/ubuntu/torch2nki/"
+    system_base = "~/annapura_real/torch2nki/" 
+
+    system_prompt_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
+    user_prompt_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_prompts/user_prompt_langchain.txt"
+    output_address = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/vector_add.txt"  # Raw OpenAI output
+    kernel_module_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/vector_add_kernel.py"  # Kernel module file
+    test_script_path = system_base + "evaluation/samples/test_vector_add.py"
+    test_script_output = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/error_message.txt"
+    reasoning_log_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/reasoning_log.txt"
     
     # Add path to error documentation
-    error_doc_path = "/home/ubuntu/torch2nki/documentation/nki_documentation/nki_error_messages.txt"
+    error_doc_path = system_base + "documentation/nki_documentation/nki_error_messages.txt"
     # Add path to function documentation directory
-    docs_dir = "/home/ubuntu/torch2nki/documentation/nki_documentation/nki_language_apis_parsed"
+    docs_dir = system_base + "documentation/nki_documentation/nki_language_apis_parsed"
     
     # Get credentials
     pinecone_api_key = os.environ.get('PINECONE_API_KEY')

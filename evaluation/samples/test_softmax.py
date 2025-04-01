@@ -41,7 +41,7 @@ def find_function_name_in_code(kernel_code):
 def main():
     # Extract the kernel code from the LLM-generated file
     system_base = "/home/krangana/annapura_real/torch2nki/"
-    llm_output_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/dot_product.txt"
+    llm_output_path = system_base + "generation/langchain_single_pass/langchain_files/langchain_outputs/vector_softmax.txt"
     file_path = llm_output_path
     
     # Extract the actual code from the LLM output
@@ -58,32 +58,31 @@ def main():
     #exec(kernel_code, globals())
 
     #write kernel code to a python file
-    with open("dot_product_kernel.py", "w", encoding="utf-8") as f:
+    with open("vector_softmax_kernel.py", "w", encoding="utf-8") as f:
         f.write(kernel_code)
 
 
     #import kernel code
-    from dot_product_kernel import nki_dot_product  
+    from vector_softmax_kernel import nki_vector_softmax 
 
 
 
 
     # Create random 1D tensors
     np.random.seed(0)
-    lhs_small = torch.rand((128,))
-    rhs_small = torch.rand((128,))
+    vector_small = torch.rand((128,))
 
     # Convert PyTorch tensors to NumPy for NKI
     # This example uses the kernel's expected shape: (lhs_rows, lhs_cols) and (lhs_cols, rhs_cols).
     # Run NKI kernel using simulate_kernel
     output_nki = nki.simulate_kernel(
-        nki_dot_product, 
-        np.array(lhs_small), 
-        np.array(rhs_small)
+        vector_softmax, 
+        np.array(vector_small)
     )
 
     # Compare with PyTorch reference to check correctness
-    output_torch = torch.dot(lhs_small, rhs_small)
+    output_torch = torch.softmax(vector_small, dim=-1)
+
 
     # allclose check
     if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
