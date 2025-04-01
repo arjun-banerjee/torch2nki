@@ -1,0 +1,39 @@
+Based on the requirements and documentation provided, I'll create an NKI kernel for the absolute value operation. Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_abs(a_tensor):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # Compute absolute values
+    output_tile = nl.abs(input_tile)
+    
+    # Store results back to HBM
+    nl.store(result, value=output_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Uses proper NKI integration with the @nki.jit decorator
+2. Initializes the result array in shared HBM memory
+3. Loads input data from HBM to on-chip memory using nl.load
+4. Computes absolute values using nl.abs
+5. Stores results back to HBM using nl.store
+6. Returns the result array
+
+The kernel is:
+- Efficient: Uses hardware-optimized operations
+- Simple: Avoids unnecessary loops since nl.abs operates element-wise
+- Correct: Preserves input data types and shapes
+- Well-structured: Clear separation of load, compute, store operations
+
+Note that nl.abs handles the absolute value computation directly at the hardware level, making this implementation both simple and efficient.

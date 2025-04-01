@@ -1,0 +1,40 @@
+Based on the requirements and documentation provided, I'll create a NKI kernel implementation for the tanh operation. I'll use the built-in nl.tanh function since it's directly supported by NKI.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_tanh(a_tensor):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # Compute tanh using built-in NKI function
+    output_tile = nl.tanh(input_tile)
+    
+    # Store result back to HBM
+    nl.store(result, output_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Uses the @nki.jit decorator for NKI compilation
+2. Creates a result array in shared HBM with same shape and dtype as input
+3. Loads input data from HBM to on-chip memory using nl.load
+4. Computes tanh using the built-in nl.tanh function
+5. Stores the result back to HBM
+6. Returns the result array
+
+Key features:
+- Uses efficient built-in NKI tanh implementation
+- Properly handles memory transfers between HBM and on-chip memory
+- Maintains input tensor's shape and dtype
+- Simple and maintainable code structure
+- Returns result as required
+
+The kernel will automatically handle type promotion and casting according to NKI's rules if needed. The implementation is also efficient as it uses the hardware-optimized tanh function rather than implementing it manually.

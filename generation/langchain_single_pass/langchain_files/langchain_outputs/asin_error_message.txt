@@ -1,0 +1,19 @@
+Running NKI kernel simulation...
+
+--- Results Comparison ---
+NKI output (first 5): [-0.17241418  0.3067512  -0.6656616  -1.2531092   0.21174327]
+PyTorch output (first 5): [-0.17241418  0.3067512  -0.66570944 -1.3111923   0.21174327]
+
+❌ ERROR: NKI and PyTorch outputs differ!
+Element 3: PyTorch=-1.311192, NKI=-1.253109, Diff=0.058083
+Element 6: PyTorch=-0.978801, NKI=-0.975221, Diff=0.003580
+Element 11: PyTorch=-0.731466, NKI=-0.731322, Diff=0.000144
+Element 13: PyTorch=1.204651, NKI=1.177144, Diff=0.027506
+Element 14: PyTorch=-0.782931, NKI=-0.782618, Diff=0.000313
+Element 17: PyTorch=-1.390786, NKI=-1.296465, Diff=0.094321
+Element 21: PyTorch=-0.836140, NKI=-0.835485, Diff=0.000655
+Element 22: PyTorch=-1.208016, NKI=-1.179800, Diff=0.028216
+Element 24: PyTorch=-1.238170, NKI=-1.202916, Diff=0.035254
+Element 27: PyTorch=-0.761533, NKI=-0.761305, Diff=0.000228
+...
+

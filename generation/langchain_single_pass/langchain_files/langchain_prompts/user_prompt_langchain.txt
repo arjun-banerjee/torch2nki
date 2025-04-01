@@ -1,4 +1,4 @@
-Generate a custom kernel for vector addition a using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for vector dot product a using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
@@ -6,19 +6,19 @@ Generate a custom kernel for vector addition a using AWS Neural Kernel Interface
 
 Here is a python implementation for it:
 
-def vector_add(v1, v2):
+def vector_dot_product(v1, v2):
     """
-    Adds two vectors element-wise using an explicit loop.
+    Finds the dot product of two vectors element-wise using an explicit loop.
     :param v1: List of numbers (first vector)
     :param v2: List of numbers (second vector)
-    :return: List representing the sum of the two vectors
+    :return: Number representing the dot product of the two vectors
     """
     if len(v1) != len(v2):
         raise ValueError("Vectors must be of the same length")
     
-    result = []
+    result = 0  # Initialize the result variable
     for i in range(len(v1)):
-        result.append(v1[i] + v2[i])
+        result += v1[i] * v2[i]
     
     return result
 

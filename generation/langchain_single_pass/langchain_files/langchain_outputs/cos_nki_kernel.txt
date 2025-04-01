@@ -1,0 +1,38 @@
+Based on the requirements and documentation provided, I'll create a NKI kernel for the cos operation. I'll use the built-in cos function from NKI language since it's already optimized for the hardware.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_cos(a_tensor):
+    # Initialize result tensor with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # Compute cosine using built-in cos function
+    temp_result = nl.cos(input_tile)
+    
+    # Store result back to HBM
+    nl.store(result, temp_result)
+    
+    return result
+```
+
+This implementation:
+1. Takes an input tensor a_tensor
+2. Creates a result tensor with the same shape and dtype as the input
+3. Loads the input data from HBM to on-chip memory
+4. Computes the cosine using the built-in nl.cos function
+5. Stores the result back to HBM
+6. Returns the result tensor
+
+Key features:
+- Uses the optimized nl.cos function from NKI
+- Handles memory transfers between HBM and on-chip memory properly
+- Preserves input tensor shape and dtype
+- Returns the result as required
+
+The implementation is simple and efficient since it leverages the built-in cos function from NKI which is already optimized for the hardware. We don't need to implement the Taylor series approximation manually as it's handled internally by the hardware/compiler.

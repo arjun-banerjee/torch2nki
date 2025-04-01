@@ -1,0 +1,29 @@
+ERROR MESSAGE:
+Running NKI kernel simulation...
+Error running test: Expected operand 'x' of 'power' to be in address space 'psum|sbuf', but got a tile in 'hbm' instead.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-unsupported-memory
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/test_sim.py", line 426, in test_torch_power
+    output_nki = nki.simulate_kernel(
+  File "neuronxcc/nki/compile.py", line 37, in neuronxcc.nki.compile.simulate_kernel
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 274, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 275, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 361, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.call_impl
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/pow_nki_kernel.py", line 20, in nki_pow
+    temp = nl.power(a_tensor, exp_tensor)
+TypeError: Expected operand 'x' of 'power' to be in address space 'psum|sbuf', but got a tile in 'hbm' instead.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-unsupported-memory
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

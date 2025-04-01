@@ -1,0 +1,381 @@
+UPDATED SELECTED FUNCTIONS:
+load, store, zeros, abs, multiply, add, affine_range, arange, copy, divide, exp, gelu, log, max, mean, min, relu, sigmoid, softmax, sqrt, subtract, tanh
+
+ADDED FUNCTIONS:
+affine_range, arange, copy, divide, exp, gelu, log, max, mean, min, relu, sigmoid, softmax, sqrt, subtract, tanh
+
+ADDED DOCUMENTATION:
+FUNCTION: affine_range
+--------------------------------------------------
+nki.language.affine_range
+
+Signature:
+nki.language.affine_range(*args, **kwargs)
+
+Description:
+Create a sequence of numbers for use as parallel loop iterators in NKI. affine_range should be the default loop iterator choice, when there is no loop carried dependency. Note, associative reductions are not considered loop carried dependencies in this context. A concrete example of associative reduction is multiple nl.matmul or nisa.nc_matmul calls accumulating into the same output buffer defined outside of this loop level (see code example #2 below).
+When the above conditions are not met, we recommend using sequential_range instead.
+
+Notes:
+Using affine_range prevents Neuron compiler from unrolling the loops until entering compiler backend, which typically results in better compilation time compared to the fully unrolled iterator static_range.
+Using affine_range also allows Neuron compiler to perform additional loop-level optimizations, such as loop vectorization in current release. The exact type of loop-level optimizations applied is subject to changes in future releases.
+Since each kernel instance only runs on a single NeuronCore, affine_range does not parallelize different loop iterations across multiple NeuronCores. However, different iterations could be parallelized/pipelined on different compute engines within a NeuronCore depending on the invoked instructions (engines) and data dependency in the loop body.
+
+Example:
+ 1import neuronxcc.nki.language as nl
+ 2
+ 3#######################################################################
+ 4# Example 1: No loop carried dependency
+ 5# Input/Output tensor shape: [128, 2048]
+ 6# Load one tile ([128, 512]) at a time, square the tensor element-wise,
+ 7# and store it into output tile
+ 8#######################################################################
+ 9
+10# Every loop instance works on an independent input/output tile.
+11# No data dependency between loop instances.
+12for i_input in nl.affine_range(input.shape[1] // 512):
+13  offset = i_input * 512
+14  input_sb = nl.load(input[0:input.shape[0], offset:offset+512])
+15  result = nl.multiply(input_sb, input_sb)
+16  nl.store(output[0:input.shape[0], offset:offset+512], result)
+17
+18#######################################################################
+19# Example 2: Matmul output buffer accumulation, a type of associative reduction
+20# Input tensor shapes for nl.matmul: xT[K=2048, M=128] and y[K=2048, N=128]
+21# Load one tile ([128, 128]) from both xT and y at a time, matmul and
+22# accumulate into the same output buffer
+23#######################################################################
+24
+25result_psum = nl.zeros((128, 128), dtype=nl.float32, buffer=nl.psum)
+26for i_K in nl.affine_range(xT.shape[0] // 128):
+27  offset = i_K * 128
+28  xT_sbuf = nl.load(offset:offset+128, 0:xT.shape[1]])
+29  y_sbuf = nl.load(offset:offset+128, 0:y.shape[1]])
+30
+31  result_psum += nl.matmul(xT_sbuf, y_sbuf, transpose_x=True)
+
+================================================================================
+
+FUNCTION: arange
+--------------------------------------------------
+nki.language.arange
+
+Signature:
+nki.language.arange(*args)
+
+Description:
+Return contiguous values within a given interval, used for indexing a tensor to define a tile.
+((Similar to numpy.arange))
+arange can be called as:
+arange(stop): Values are generated within the half-open interval [0, stop) (the interval including zero, excluding stop).
+arange(start, stop): Values are generated within the half-open interval [start, stop) (the interval including start, excluding stop).
+
+================================================================================
+
+FUNCTION: copy
+--------------------------------------------------
+nki.language.copy
+
+Signature:
+nki.language.copy(src, *, mask=None, dtype=None, **kwargs)
+
+Description:
+Create a copy of the src tile.
+
+Parameters:
+src – the source of copy, must be a tile in SBUF or PSUM.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+
+Returns:
+a new tile with the same layout as src, this new tile will be in SBUF, but can be also assigned to a PSUM tensor.
+
+================================================================================
+
+FUNCTION: divide
+--------------------------------------------------
+nki.language.divide
+
+Signature:
+nki.language.divide(x, y, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Divide the inputs, element-wise.
+((Similar to numpy.divide))
+
+Parameters:
+x – a tile or a scalar value.
+y – a tile or a scalar value. x.shape and y.shape must be broadcastable to a common shape, that will become the shape of the output.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tiles, or whichever input type has the highest precision (see NKI Type Promotion for more information);
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has x / y, element-wise.
+
+================================================================================
+
+FUNCTION: exp
+--------------------------------------------------
+nki.language.exp
+
+Signature:
+nki.language.exp(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Exponential of the input, element-wise.
+((Similar to numpy.exp))
+The exp(x) is e^x where e is the Euler’s number = 2.718281…
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has exponential values of x.
+
+================================================================================
+
+FUNCTION: gelu
+--------------------------------------------------
+nki.language.gelu
+
+Signature:
+nki.language.gelu(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Gaussian Error Linear Unit activation function on the input, element-wise.
+((Similar to torch.nn.functional.gelu))
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has gelu of x.
+
+================================================================================
+
+FUNCTION: log
+--------------------------------------------------
+nki.language.log
+
+Signature:
+nki.language.log(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Natural logarithm of the input, element-wise.
+((Similar to numpy.log))
+It is the inverse of the exponential function, such that: log(exp(x)) = x . The natural logarithm base is e.
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has natural logarithm values of x.
+
+================================================================================
+
+FUNCTION: max
+--------------------------------------------------
+nki.language.max
+
+Signature:
+nki.language.max(x, axis, *, dtype=None, mask=None, keepdims=False, **kwargs)
+
+Description:
+Maximum of elements along the specified axis (or axes) of the input.
+((Similar to numpy.max))
+
+Parameters:
+x – a tile.
+axis – int or tuple/list of ints. The axis (or axes) along which to operate; must be free dimensions, not partition dimension (0); can only be the last contiguous dim(s) of the tile: [1], [1,2], [1,2,3], [1,2,3,4]
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+keepdims – If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this option, the result will broadcast correctly against the input array.
+
+Returns:
+a tile with the maximum of elements along the provided axis. This return tile will have a shape of the input tile’s shape with the specified axes removed.
+
+================================================================================
+
+FUNCTION: mean
+--------------------------------------------------
+nki.language.mean
+
+Signature:
+nki.language.mean(x, axis, *, dtype=None, mask=None, keepdims=False, **kwargs)
+
+Description:
+Arithmetic mean along the specified axis (or axes) of the input.
+((Similar to numpy.mean))
+
+Parameters:
+x – a tile.
+axis – int or tuple/list of ints. The axis (or axes) along which to operate; must be free dimensions, not partition dimension (0); can only be the last contiguous dim(s) of the tile: [1], [1,2], [1,2,3], [1,2,3,4]
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile with the average of elements along the provided axis. This return tile will have a shape of the input tile’s shape with the specified axes removed. float32 intermediate and return values are used for integer inputs.
+
+================================================================================
+
+FUNCTION: min
+--------------------------------------------------
+nki.language.min
+
+Signature:
+nki.language.min(x, axis, *, dtype=None, mask=None, keepdims=False, **kwargs)
+
+Description:
+Minimum of elements along the specified axis (or axes) of the input.
+((Similar to numpy.min))
+
+Parameters:
+x – a tile.
+axis – int or tuple/list of ints. The axis (or axes) along which to operate; must be free dimensions, not partition dimension (0); can only be the last contiguous dim(s) of the tile: [1], [1,2], [1,2,3], [1,2,3,4]
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+keepdims – If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this option, the result will broadcast correctly against the input array.
+
+Returns:
+a tile with the minimum of elements along the provided axis. This return tile will have a shape of the input tile’s shape with the specified axes removed.
+
+================================================================================
+
+FUNCTION: relu
+--------------------------------------------------
+nki.language.relu
+
+Signature:
+nki.language.relu(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Rectified Linear Unit activation function on the input, element-wise.
+relu(x) = (x)+ = max(0,x)
+((Similar to torch.nn.functional.relu))
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has relu of x.
+
+================================================================================
+
+FUNCTION: sigmoid
+--------------------------------------------------
+nki.language.sigmoid
+
+Signature:
+nki.language.sigmoid(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Logistic sigmoid activation function on the input, element-wise.
+((Similar to torch.nn.functional.sigmoid))
+sigmoid(x) = 1/(1+exp(-x))
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has sigmoid of x.
+
+================================================================================
+
+FUNCTION: softmax
+--------------------------------------------------
+nki.language.softmax
+
+Signature:
+nki.language.softmax(x, axis, *, dtype=None, compute_dtype=None, mask=None, **kwargs)
+
+Description:
+Softmax activation function on the input, element-wise.
+((Similar to torch.nn.functional.softmax))
+
+Parameters:
+x – a tile.
+axis – int or tuple/list of ints. The axis (or axes) along which to operate; must be free dimensions, not partition dimension (0); can only be the last contiguous dim(s) of the tile: [1], [1,2], [1,2,3], [1,2,3,4]
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+compute_dtype – (optional) dtype for the internal computation - currently `dtype` and `compute_dtype` behave the same, both sets internal compute and return dtype.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has softmax of x.
+
+================================================================================
+
+FUNCTION: sqrt
+--------------------------------------------------
+nki.language.sqrt
+
+Signature:
+nki.language.sqrt(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Non-negative square-root of the input, element-wise.
+((Similar to numpy.sqrt))
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has square-root values of x.
+
+================================================================================
+
+FUNCTION: subtract
+--------------------------------------------------
+nki.language.subtract
+
+Signature:
+nki.language.subtract(x, y, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Subtract the inputs, element-wise.
+((Similar to numpy.subtract))
+
+Parameters:
+x – a tile or a scalar value.
+y – a tile or a scalar value. x.shape and y.shape must be broadcastable to a common shape, that will become the shape of the output.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tiles, or whichever input type has the highest precision (see NKI Type Promotion for more information);
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has x - y, element-wise.
+
+================================================================================
+
+FUNCTION: tanh
+--------------------------------------------------
+nki.language.tanh
+
+Signature:
+nki.language.tanh(x, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Hyperbolic tangent of the input, element-wise.
+((Similar to numpy.tanh))
+
+Parameters:
+x – a tile.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has hyperbolic tangent values of x.
+
+================================================================================
+
+

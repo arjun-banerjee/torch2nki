@@ -1,0 +1,51 @@
+Based on the requirements and documentation provided, I'll create an NKI kernel for the rsqrt operation. I'll use the built-in `nl.rsqrt()` function since it's directly supported by NKI.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_rsqrt(a_tensor):
+    """
+    Calculates the reciprocal square root (1/sqrt(x)) of each element in the input tensor.
+    
+    Args:
+        a_tensor: Input tensor
+        
+    Returns:
+        A tensor containing the reciprocal square root of each element in the input tensor
+    """
+    # Initialize result tensor in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # Compute rsqrt
+    output_tile = nl.rsqrt(input_tile)
+    
+    # Store result back to HBM
+    nl.store(result, value=output_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Takes an input tensor `a_tensor`
+2. Initializes a result tensor in shared HBM with the same shape and dtype as the input
+3. Loads the input data from HBM to on-chip memory
+4. Computes the reciprocal square root using the built-in `nl.rsqrt()` function
+5. Stores the result back to HBM
+6. Returns the result tensor
+
+Key features:
+- Uses NKI's native rsqrt implementation for optimal performance
+- Handles memory transfers between HBM and on-chip memory correctly
+- Preserves input tensor shape and dtype
+- Returns result as required
+
+This implementation is efficient as it:
+- Uses built-in NKI operations
+- Minimizes memory transfers
+- Takes advantage of hardware acceleration for the rsqrt operation

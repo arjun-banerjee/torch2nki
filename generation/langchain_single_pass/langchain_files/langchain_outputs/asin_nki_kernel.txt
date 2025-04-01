@@ -1,0 +1,35 @@
+***Implementing arcsin using a fixed number of Taylor series terms (6 terms) with optimized coefficients for better accuracy in the [-1,1] range, while properly initializing result array and storing computed values using pre-computed constants for numerical stability***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_asin(a_tensor):
+    # Initialize result array
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensor
+    x = nl.load(a_tensor)
+    
+    # Calculate powers of x
+    x2 = nl.multiply(x, x)
+    x3 = nl.multiply(x2, x)
+    x5 = nl.multiply(x3, x2)
+    x7 = nl.multiply(x5, x2)
+    x9 = nl.multiply(x7, x2)
+    x11 = nl.multiply(x9, x2)
+    
+    # Compute arcsin using optimized coefficients
+    temp = nl.multiply(1.0, x)
+    temp = nl.add(temp, nl.multiply(0.166666667, x3))
+    temp = nl.add(temp, nl.multiply(0.075, x5))
+    temp = nl.add(temp, nl.multiply(0.0446428571, x7))
+    temp = nl.add(temp, nl.multiply(0.0303819444, x9))
+    temp = nl.add(temp, nl.multiply(0.0223721311, x11))
+    
+    # Store result
+    nl.store(result, temp)
+    
+    return result
+```

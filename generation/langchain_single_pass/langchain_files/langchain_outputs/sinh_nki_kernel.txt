@@ -1,0 +1,48 @@
+Based on the requirements and documentation provided, I'll create a NKI kernel for the sinh operation that follows best practices and properly handles initialization and return values.
+
+Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sinh(a_tensor):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    a_sbuf = nl.load(a_tensor)
+    
+    # Calculate e^x and e^-x using nl.exp
+    pos_exp = nl.exp(a_sbuf)
+    neg_exp = nl.exp(nl.subtract(0, a_sbuf))  # -x
+    
+    # Calculate sinh = (e^x - e^-x) / 2
+    temp = nl.subtract(pos_exp, neg_exp)
+    temp = nl.divide(temp, 2.0)
+    
+    # Store result back to HBM
+    nl.store(result, temp)
+    
+    return result
+```
+
+This implementation:
+
+1. Takes the input tensor a_tensor
+2. Properly initializes the result array in shared HBM memory
+3. Loads the input data into on-chip memory (SBUF)
+4. Calculates sinh using the formula (e^x - e^-x) / 2
+5. Uses the NKI primitive operations exp, subtract, and divide
+6. Stores the result back to HBM
+7. Returns the result tensor
+
+The kernel follows the mathematical definition of sinh while using NKI's optimized primitives. It avoids unnecessary loops by leveraging NKI's vectorized operations and handles the computation efficiently on the Neuron hardware.
+
+Note that this implementation:
+- Uses proper memory hierarchy (HBM to SBUF and back)
+- Maintains type consistency
+- Returns the result as required
+- Uses vectorized operations instead of explicit loops
+- Follows NKI best practices for memory management and computation

@@ -1,0 +1,56 @@
+Based on the requirements and documentation provided, I'll create an efficient NKI kernel for the subtraction operation. I'll follow the best practices and use the proper initialization of the result array as specified.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sub(a_tensor, b_tensor):
+    """
+    Perform element-wise subtraction of two tensors using NKI.
+    
+    Args:
+        a_tensor: First input tensor
+        b_tensor: Second input tensor
+        
+    Returns:
+        Result tensor containing a - b
+    """
+    # Validate input shapes
+    if a_tensor.shape != b_tensor.shape:
+        raise ValueError("Input tensors must have the same shape")
+        
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensors into on-chip memory
+    a_tile = nl.load(a_tensor)
+    b_tile = nl.load(b_tensor)
+    
+    # Perform subtraction
+    temp = nl.subtract(a_tile, b_tile)
+    
+    # Store result back to HBM
+    nl.store(result, temp)
+    
+    return result
+```
+
+This implementation:
+
+1. Uses proper NKI API integration with the `@nki.jit` decorator
+2. Validates input shapes
+3. Initializes result array in shared HBM as specified
+4. Uses efficient NKI operations:
+   - `nl.load` to bring data into on-chip memory
+   - `nl.subtract` for the core operation
+   - `nl.store` to write results back to HBM
+5. Returns the result tensor as required
+
+Key features:
+- No explicit loops needed since NKI handles vectorization
+- Efficient memory handling using proper buffer types
+- Proper error checking
+- Clean and maintainable structure
+
+The kernel will perform element-wise subtraction efficiently on the Neuron hardware while maintaining proper memory management and data movement patterns.

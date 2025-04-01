@@ -1,0 +1,6 @@
+=== Iteration 1 ===
+The error message indicates that 'power' operation requires input to be in 'psum|sbuf' memory space, so we need to first load the tensor from HBM into SBUF memory before performing the power operation.
+
+=== Iteration 2 ===
+The error indicates we need to load tensors into SBUF memory before performing power operation, since power requires operands to be in SBUF/PSUM memory space rather than HBM.
+

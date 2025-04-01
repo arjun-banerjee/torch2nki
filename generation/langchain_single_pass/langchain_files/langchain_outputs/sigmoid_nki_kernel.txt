@@ -1,0 +1,42 @@
+Based on the requirements and documentation provided, I'll create an efficient NKI kernel for the sigmoid operation. I'll use the built-in sigmoid function from NKI since it's already optimized for the hardware.
+
+Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sigmoid(a_tensor):
+    # Initialize result array with same shape and dtype as input tensor
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # Compute sigmoid using NKI's optimized implementation
+    output_tile = nl.sigmoid(input_tile, dtype=a_tensor.dtype)
+    
+    # Store result back to HBM
+    nl.store(result, output_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Takes an input tensor `a_tensor`
+2. Creates a result tensor with the same shape and dtype as the input
+3. Loads the input data from HBM to on-chip memory
+4. Applies the sigmoid function using NKI's built-in implementation
+5. Stores the result back to HBM
+6. Returns the result tensor
+
+Key features:
+- Uses NKI's native sigmoid implementation for optimal performance
+- Maintains the input tensor's data type
+- Properly handles memory transfers between HBM and on-chip memory
+- Simple and efficient implementation without unnecessary loops
+- Follows the required pattern of initializing result, computing with a dummy variable (output_tile), storing to result, and returning result
+
+This implementation should provide good performance while maintaining accuracy and following best practices for NKI kernel development.

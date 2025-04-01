@@ -1,0 +1,43 @@
+Based on the requirements and documentation provided, I'll create a NKI kernel for the log operation. Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_log(a_tensor):
+    # Initialize result tensor with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data from HBM to on-chip memory
+    in_tile = nl.load(a_tensor)
+    
+    # Compute natural logarithm
+    out_tile = nl.log(in_tile)
+    
+    # Store result back to HBM
+    nl.store(result, value=out_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Uses the proper initialization of the result array as specified
+2. Uses `nl.load` to bring data from HBM to on-chip memory
+3. Applies the natural logarithm operation using `nl.log`
+4. Stores the result back to HBM using `nl.store`
+5. Returns the result tensor
+
+Key features:
+- Handles the data movement between HBM and on-chip memory correctly
+- Uses the native NKI log operation for optimal performance
+- Preserves the input tensor's shape and dtype
+- Returns the result as required
+
+The kernel is efficient as it:
+- Minimizes data movement
+- Uses hardware-accelerated log operation
+- Maintains proper memory hierarchy usage
+
+The implementation follows the NKI best practices and documentation guidelines while keeping the code simple and maintainable.

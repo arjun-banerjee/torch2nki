@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('rate_limit_handler')
 
-def retry_with_backoff(max_retries=5, base_delay=1, max_delay=60):
+def retry_with_backoff(max_retries=60, base_delay=50, max_delay=150):
     """
     Decorator for implementing exponential backoff with jitter.
     
@@ -59,7 +59,7 @@ def retry_with_backoff(max_retries=5, base_delay=1, max_delay=60):
     return decorator
 
 # Create a function specifically for chain invocation
-def invoke_chain_with_retry(chain, params, max_retries=5, base_delay=1, max_delay=60, log_to_file_func=None):
+def invoke_chain_with_retry(chain, params, max_retries=60, base_delay=50, max_delay=150, log_to_file_func=None):
     """
     Safely invoke a LangChain chain with retry logic for rate limiting.
     
