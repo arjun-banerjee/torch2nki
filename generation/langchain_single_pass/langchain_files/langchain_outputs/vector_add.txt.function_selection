@@ -31,6 +31,11 @@ FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "return resu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
+result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+this is how you should be initializing the result array at the start
+Remember to use this to initialize your result
+
+
 Here is an example for the dot product vector. The code for the vector add does not have to relate
 at all or follow the same format, I am simply giving it to you so can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.

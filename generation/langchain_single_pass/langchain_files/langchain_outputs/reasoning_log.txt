@@ -1189,3 +1189,66 @@ The error 'Mixing basic tensor indexing and advanced tensor indexing' occurs whe
 === Iteration 6 ===
 The error 'Expected 1 indices, got 2' occurs because we're trying to use 2D indexing on a 1D tensor - we need to simplify the tensor indexing to match the input dimensionality by only using i_p without i_f since we're working with 1D vectors
 
+=== Iteration 1 ===
+The error 'Insufficient rank' occurs because nl.zeros() requires a tensor with at least 1 dimension, and we need to explicitly reshape a_tensor to ensure proper dimensionality by using a_tensor.shape[0] to create a 1D output tensor.
+
+=== Iteration 2 ===
+The error 'Insufficient rank' occurs because nl.zeros() requires shape as a tuple - changing result initialization to use (a_tensor.shape[0],) to create a 1D tensor with proper dimensionality.
+
+=== Iteration 3 ===
+The error occurs because we need to properly handle tensor ranks by using nl.arange() to create indices for loading and storing, similar to the documentation example for vector operations, and then use nl.add() directly on the loaded tensors.
+
+=== Iteration 4 ===
+Based on the error message about mixing basic and advanced tensor indexing, we need to use consistent tensor indexing by including both i_p and i_f indices for proper tensor access and maintain dimensionality alignment throughout the operations.
+
+=== Iteration 5 ===
+Since we're doing vector addition, we can simply use nl.add() directly on the loaded tensors without complex indexing, keeping the input tensors as 1D and using nl.load() to bring them into SBUF before addition
+
+=== Iteration 6 ===
+To fix the 'Insufficient rank' error, we'll modify the zeros() initialization to create a 2D tensor with shape (a_tensor.shape[0], 1) since NKI requires tensors to have at least 2 dimensions for proper broadcasting and operations
+
+=== Iteration 7 ===
+To fix the 'Expected operand dst of store to be in address space hbm' error, we need to ensure the result tensor is allocated in HBM memory by using nl.zeros(..., buffer=nl.hbm) instead of nl.sbuf, since the store operation requires the destination to be in HBM memory
+
+=== Iteration 8 ===
+Since creating an HBM tensor with initialization is not supported, we'll need to declare the result tensor first, then load it into SBUF to perform operations, and finally store back to the result tensor in HBM
+
+=== Iteration 9 ===
+To fix the 'Expected operand dst of store to be in address space hbm' error, we need to modify how we handle the result tensor by directly storing the computed temp value into the HBM result tensor using nl.store() without initializing result in SBUF first.
+
+=== Iteration 10 ===
+Since we can't store directly to a_tensor (it's immutable), we need to create a new output tensor in HBM using nl.zeros() and store the result there, then return that tensor
+
+=== Iteration 11 ===
+Since we can't initialize HBM tensors directly, we'll create the result tensor at the end by using nl.store() to write the computed temp value directly to a new output tensor that will be returned
+
+=== Iteration 12 ===
+Since the kernel needs to return a tensor from HBM memory, we'll store the computed temp value into an HBM tensor using nl.store() before returning it, and return the HBM tensor directly rather than returning the SBUF tensor
+
+=== Iteration 13 ===
+Instead of trying to create a tensor in HBM with zeros, we'll first load the input tensors into SBUF, perform the addition there, then store the result back to the output tensor which is passed as a parameter
+
+=== Iteration 14 ===
+Instead of storing temp directly as result and returning it, we need to store temp into the output HBM tensor using nl.store() and then return that tensor since NKI kernels must return HBM tensors
+
+=== Iteration 15 ===
+Instead of trying to store directly in HBM or create HBM tensors with initial values, we'll use an SBUF tensor for the computation and store the final result in the output tensor, following the pattern shown in the documentation where results are stored using nl.store() to write back to HBM memory.
+
+=== Iteration 1 ===
+The error 'Insufficient rank!' occurs because we need to specify the rank (dimensions) when creating the result tensor with nl.zeros(), so we'll modify it to use a.shape[0] to create a 1D tensor matching the input size.
+
+=== Iteration 2 ===
+To fix the 'Insufficient rank!' error, we need to add proper dimensionality to the result tensor by adding [:, None] to create a 2D tensor shape when initializing with nl.zeros(), as NKI requires explicit dimensionality specification for tensor operations.
+
+=== Iteration 3 ===
+The error occurs because we need to store the result of nl.add() into a temp variable first, then store that in the result buffer using nl.store(), and finally return the result buffer - this ensures proper data flow through NKI's memory hierarchy.
+
+=== Iteration 4 ===
+Instead of using nl.zeros with HBM buffer, we should initialize result on SBUF, perform the addition there, and then store to output tensor, following proper NKI memory hierarchy flow
+
+=== Iteration 1 ===
+The previous kernel was incorrectly performing element-wise addition by using complex indexing - instead, we'll use nl.add() directly on the loaded tensors since NKI provides native element-wise operations that handle broadcasting automatically.
+
+=== Iteration 2 ===
+The previous kernel was computing incorrect results because we were not properly loading the input tensors into SBUF before performing the addition operation - we'll fix this by first loading both tensors into SBUF using nl.load(), then using nl.add() to perform the element-wise addition, and finally storing the result back to HBM using nl.store().
+

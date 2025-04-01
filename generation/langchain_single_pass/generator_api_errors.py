@@ -10,7 +10,7 @@ import traceback
 import datetime
 import json
 
-
+from rate_limit_handler import retry_with_backoff, invoke_chain_with_retry
 
 
 from extraction import extract_kernel_from_llm_response, extract_reasoning, run_script_and_save_output, read_file, write_file, log_to_file
@@ -174,6 +174,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
         model_kwargs={"temperature": 0.85},  # Move temperature into model_kwargs
         region_name="us-west-2"
     )
+    
 
 
     # Get list of available functions
@@ -236,11 +237,18 @@ def generate_kernel_with_direct_docs_and_error_loop(
             | StrOutputParser()
         )
         
-        initial_generation = initial_kernel_chain.invoke({
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
-            "function_docs": function_docs
-        })
+        try:
+            initial_generation = invoke_chain_with_retry(initial_kernel_chain, {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "function_docs": function_docs
+            },
+            log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
+        )
+        except Exception as e:
+            print(f"Error in initial kernel generation: {e}")
+            log_to_file(trace_log_path, f"ERROR IN INITIAL KERNEL GENERATION: {e}")
+            initial_generation = f"Error occurred: {str(e)}"
         
         # Save raw output
         write_file(output_address, initial_generation)
@@ -370,10 +378,18 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 | StrOutputParser()
             )
 
-            error_response = error_selection_chain.invoke({
-                "error_message": previous_error_message,
-                "error_list": error_list
-            })
+            try:
+                error_response = invoke_chain_with_retry(error_selection_chain, {
+                    "error_message": previous_error_message,
+                    "error_list": error_list
+                },
+                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
+            )
+            except Exception as e:
+                print(f"Error in error selection: {e}")
+                log_to_file(trace_log_path, f"ERROR IN ERROR SELECTION: {e}")
+                error_response = "[]"  # Default to empty list on error
+
 
             # Clean up and parse the response
             try:
@@ -446,11 +462,19 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 | StrOutputParser()
             )
 
-            additional_response = additional_functions_chain.invoke({
-                "current_functions": ", ".join(selected_functions),
-                "error_message": previous_error_message,
-                "all_functions": ", ".join(available_functions)
-            })
+            try:
+                additional_response = invoke_chain_with_retry(additional_functions_chain, {
+                    "current_functions": ", ".join(selected_functions),
+                    "error_message": previous_error_message,
+                    "all_functions": ", ".join(available_functions)
+                },
+                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
+            )
+            except Exception as e:
+                print(f"Error in additional functions selection: {e}")
+                log_to_file(trace_log_path, f"ERROR IN ADDITIONAL FUNCTIONS SELECTION: {e}")
+                additional_response = "[]"  # Default to empty list on error
+
 
             # Clean up the response to ensure it's valid JSON
             def extract_json_array(text):
@@ -548,13 +572,20 @@ def generate_kernel_with_direct_docs_and_error_loop(
             )
             log_to_file(trace_log_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n")
             
-            improved_generation = enhanced_error_chain.invoke({
-                "system_prompt": system_prompt,
-                "user_prompt": user_prompt,
-                "iteration_history": iteration_history,
-                "previous_error_message": previous_error_message,
-                "function_docs": function_docs
-            })
+            try:
+                improved_generation = invoke_chain_with_retry(enhanced_error_chain, {
+                    "system_prompt": system_prompt,
+                    "user_prompt": user_prompt,
+                    "iteration_history": iteration_history,
+                    "previous_error_message": previous_error_message,
+                    "function_docs": function_docs
+                },
+                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
+            )
+            except Exception as e:
+                print(f"Error in improved kernel generation: {e}")
+                log_to_file(trace_log_path, f"ERROR IN IMPROVED KERNEL GENERATION: {e}")
+                improved_generation = f"Error occurred: {str(e)}"
             
             # Save the raw output
             write_file(output_address, improved_generation)
@@ -645,13 +676,20 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     | query_llm
                     | StrOutputParser()
                 )
-                change_report_json = change_report_chain.invoke({
-                    "old_error_message": old_error_message,
-                    "old_error_line_info": old_error_line_info,
-                    "reasoning": reasoning_text,
-                    "new_error_message": error_message,
-                    "new_error_line_info": new_error_line_info
-                })
+                try:
+                    change_report_json = invoke_chain_with_retry(change_report_chain, {
+                        "old_error_message": old_error_message,
+                        "old_error_line_info": old_error_line_info,
+                        "reasoning": reasoning_text,
+                        "new_error_message": error_message,
+                        "new_error_line_info": new_error_line_info
+                    },
+                    log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
+                )
+                except Exception as e:
+                    print(f"Error in change report generation: {e}")
+                    log_to_file(trace_log_path, f"ERROR IN CHANGE REPORT GENERATION: {e}")
+                    change_report_json = '{"correct": false, "report": "Error occurred during report generation"}'
                 
                 # Extract JSON from the response (in case there's additional text)
                 json_match = re.search(r'```json\s*(.*?)\s*```', change_report_json, re.DOTALL)
@@ -732,6 +770,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     log_to_file(trace_log_path, "WAITING FOR USER INPUT TO CONTINUE TO NEXT ITERATION...")
                     input("Press Enter to continue to the next iteration (or Ctrl+C to exit)...")
 
+                    
                     print("Kernel generation process completed.")
                     log_to_file(trace_log_path, "KERNEL GENERATION PROCESS COMPLETED.")
 

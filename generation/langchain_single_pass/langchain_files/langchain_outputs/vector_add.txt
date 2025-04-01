@@ -1,28 +1,26 @@
-Error generating kernel: An error occurred (ThrottlingException) when calling the InvokeModel operation (reached max retries: 4): Too many tokens, please wait before trying again.
+***The previous kernel was computing incorrect results because we were not properly loading the input tensors into SBUF before performing the addition operation - we'll fix this by first loading both tensors into SBUF using nl.load(), then using nl.add() to perform the element-wise addition, and finally storing the result back to HBM using nl.store().***
 
-Traceback (most recent call last):
-  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/generator_api_errors.py", line 551, in generate_kernel_with_direct_docs_and_error_loop
-    improved_generation = enhanced_error_chain.invoke({
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/runnables/base.py", line 3025, in invoke
-    input = context.run(step.invoke, input, config)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 307, in invoke
-    self.generate_prompt(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 843, in generate_prompt
-    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 683, in generate
-    self._generate_with_cache(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 908, in _generate_with_cache
-    result = self._generate(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/chat_models/bedrock.py", line 721, in _generate
-    completion, tool_calls, llm_output = self._prepare_input_and_invoke(
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/llms/bedrock.py", line 971, in _prepare_input_and_invoke
-    raise e
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/langchain_aws/llms/bedrock.py", line 956, in _prepare_input_and_invoke
-    response = self.client.invoke_model(**request_options)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/client.py", line 570, in _api_call
-    return self._make_api_call(operation_name, kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/context.py", line 124, in wrapper
-    return func(*args, **kwargs)
-  File "/opt/aws_neuronx_venv_pytorch_2_5/lib/python3.10/site-packages/botocore/client.py", line 1031, in _make_api_call
-    raise error_class(parsed_response, operation_name)
-botocore.errorfactory.ThrottlingException: An error occurred (ThrottlingException) when calling the InvokeModel operation (reached max retries: 4): Too many tokens, please wait before trying again.
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_vector_add(a_tensor, b_tensor):
+    if a_tensor.shape != b_tensor.shape:
+        raise ValueError("Vectors must be of the same length")
+        
+    # Initialize result array
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensors into SBUF
+    a_buf = nl.load(a_tensor)
+    b_buf = nl.load(b_tensor)
+    
+    # Perform element-wise addition
+    temp = nl.add(a_buf, b_buf)
+    
+    # Store result back to HBM
+    nl.store(result, temp)
+    
+    return result
+```
