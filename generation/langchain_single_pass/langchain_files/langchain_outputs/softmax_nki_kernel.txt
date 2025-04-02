@@ -1,19 +1,41 @@
-***To fix the incorrect softmax outputs, using nl.softmax() directly with the correct axis parameter and explicit compute_dtype=nl.float32 to ensure proper numerical precision and stable computation across different input ranges.***
+***I will implement a numerically stable softmax by properly handling array dimensions with nl.zeros and nl.reshape, then using affine_range to compute exp values and normalize***
 
 ```python
 from neuronxcc import nki
 import neuronxcc.nki.language as nl
 
 @nki.jit
-def nki_softmax(a_tensor):
-    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+def nki_vector_softmax(input_tensor):
+    # Ensure input_tensor is 1D
+    if input_tensor.ndim != 1:
+        raise ValueError('Input tensor must be 1D.')
+        
+    # Get the shape of the input tensor
+    input_size = input_tensor.shape[0]
     
-    # Load input from HBM to SBUF
-    input_sbuf = nl.load(a_tensor)
+    # Initialize result array in HBM
+    result = nl.ndarray(input_tensor.shape, dtype=input_tensor.dtype, buffer=nl.shared_hbm)
     
-    # Apply softmax with explicit parameters
-    temp = nl.softmax(input_sbuf, axis=-1, compute_dtype=nl.float32)
-    nl.store(result, temp)
+    # Initialize arrays for exp values
+    exp_values = nl.zeros((input_size,), dtype=input_tensor.dtype)
     
+    # Initialize on SBUF for intermediate calculations
+    input_sbuf = nl.load(input_tensor)
+    
+    # Compute max for numerical stability
+    max_val = nl.reduce_max(input_sbuf)
+    shifted = input_sbuf - max_val
+    
+    # Compute exp values
+    for i in nl.affine_range(input_size):
+        exp_values[i] = nl.exp(shifted[i])
+    
+    # Sum exp values
+    sum_exp = nl.reduce_sum(exp_values)
+    
+    # Normalize
+    for i in nl.affine_range(input_size):
+        result[i] = exp_values[i] / sum_exp
+        
     return result
 ```

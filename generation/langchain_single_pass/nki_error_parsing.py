@@ -219,7 +219,7 @@ def extract_error_details(error_message):
     
     # Look for the actual error message (usually after 'ERROR:' or before the traceback)
     for i, line in enumerate(lines):
-        if line.startswith('ERROR:'):
+        if line.startswith('ERROR:') or line.startswith('❌'):
             error_description = line
             break
     

@@ -4,6 +4,7 @@ Generate a custom kernel for vector dot product a using AWS Neural Kernel Interf
 - Be well-structured, modular, and maintainable.
 
 
+
 Here is a python implementation for it:
 
 def vector_dot_product(v1, v2):

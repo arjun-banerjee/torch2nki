@@ -254,7 +254,23 @@ def generate_kernel_with_direct_docs_and_error_loop(
         # Create enhanced error re-injection prompt with error documentation and history
         enhanced_error_reinject_prompt = ChatPromptTemplate.from_template(
             "{system_prompt}\n\n"
+            "Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, trying"
+            "to keep it as brief as possible. Focus on explaining the exact change you will be making to the code."
+            "I dont want the actual code, but be specific so someone that sees the same error message on a different line of code"
+            "can implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sure"
+            "you are not trying to do the same fixes multiple times. "
+            "When you are changing the code, try to only change the line with the error message and maybe code that relates."
+            "However, if the error you are facing is that the outputs differ, then you are allowed to change multiple lines."
+            "When the outputs differ, most likely the logic is wrong. I want you to notice this and in your reasoning state that the logic is "
+            "likely wrong and state which logic you will update. Please clearly state in your reasoning ***i see that the outputs differ***"
+            "Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```"
+            "The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. "
+            "Then, immediatly after write the python nki code inside triple backticks ``` ```."
+            "I repeat, I only want your output to first be the line of reasoning inside triple stars, then the "
+            "nki kernel code inside triple backticks. Do NOT put the reasoning inside the nki kernel code."
+            "Everything above this line is the most important information. Please make sure you follow these guidelines."
             "Task: {user_prompt}\n\n"
+            
             "{iteration_history}\n\n"
             "Previous error message:\n"
             "--------------------------------------------------\n"
@@ -264,18 +280,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
             "--------------------------------------------------\n"
             "{function_docs}\n"
             "--------------------------------------------------\n\n"
-            "Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, trying"
-            "to keep it as brief as possible. Focus on explaining the exact change you will be making to the code."
-            "I dont want the actual code, but be specific so someone that sees the same error message on a different line of code"
-            "can implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sure"
-            "you are not trying to do the same fixes multiple times. "
-            "When you are changing the code, only change the line with the error message and maybe code that relates. I repeat, only change the line with the error message."
-            "I repeat, I do not want you changing code other than the line with the error and maybe lines that directly relate to that change"
-            "Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```"
-            "The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. "
-            "Then, immediatly after write the python nki code inside triple backticks ``` ```."
-            "I repeat, I only want your output to first be the line of reasoning inside triple stars, then the "
-            "nki kernel code inside triple backticks. Do NOT put the reasoning inside the nki kernel code."
+            
         )
         
         enhanced_error_chain = (
@@ -297,6 +302,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 # Run the test using the execution server for the initial kernel
                 from extraction import run
                 error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output)
+
                 previous_error_message = error_message
                 
                 # If no errors in the initial code, we're done
@@ -320,7 +326,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
             if not error_line and error_description:
                 print("\nCould not extract specific error details.")
 
-            
 
             # Get all available error codes
             available_errors = get_available_error_codes(error_parser)
@@ -471,11 +476,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     additional_docs = load_function_documentation(docs_dir, new_functions)
                     function_docs += "\n\n" + additional_docs
                     
-                    # Log updated documentation
-                    with open(f"{output_address}.function_selection", "w") as f:
-                        f.write(f"UPDATED SELECTED FUNCTIONS:\n{', '.join(selected_functions)}\n\n")
-                        f.write(f"ADDED FUNCTIONS:\n{', '.join(new_functions)}\n\n")
-                        f.write(f"ADDED DOCUMENTATION:\n{additional_docs}\n\n")
             except Exception as e:
                 print(f"Error parsing additional functions: {e}")
                 
@@ -507,15 +507,18 @@ def generate_kernel_with_direct_docs_and_error_loop(
             # Generate improved kernel with error feedback, documentation, and history
             print(f"Generating improved kernel (iteration {iteration + 1})...")
             
+
             # Log the full error prompt being sent to the LLM
             full_error_prompt = enhanced_error_reinject_prompt.format(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                iteration_history=iteration_history,
+                iteration_history="",
                 previous_error_message=previous_error_message,
                 function_docs=function_docs
             )
-            log_to_file(prompt_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n")
+            log_to_file(prompt_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n", append=False)
+            
+            
             
             try:
                 improved_generation = invoke_chain_with_retry(enhanced_error_chain, {
@@ -528,7 +531,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
             )
             except Exception as e:
                 improved_generation = f"Error occurred: {str(e)}"
-            
+                
             # Save the raw output
             write_file(output_address, improved_generation)
             
@@ -565,6 +568,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 # Extract error line from old error message if possible
                 old_error_line, _ = extract_error_details(old_error_message)
                 new_error_line, _ = extract_error_details(error_message)
+
+                
                 
                 old_error_line_info = f"Error occurred at line: {old_error_line}" if old_error_line else "Error line could not be determined."
                 new_error_line_info = f"Error occurred at line: {new_error_line}" if new_error_line else "Error line could not be determined."
@@ -647,7 +652,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
 
                 # Update the previous error message for the next iteration
                 previous_error_message = error_message
-                
+
                 # If no errors, we're done
                 if "Error" not in error_message and "error" not in error_message and "ERROR" not in error_message:
                     log_iteration_data(
@@ -666,7 +671,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 
                 # Pause for review before the next iteration if needed
                 if iteration < max_iterations - 1:
-                    print("Kernel generation process completed.")
+                    print("Kernel iteration process completed.")
+                    
 
     except Exception as e:
         error_details = traceback.format_exc()
