@@ -42,8 +42,9 @@ for op, in operations:
     Write a Python function for the operation '{op}'. The function should:
     - Be vectorized.
     - Not use built-in functions for calculations.
-    - Not use NumPy or any external libraries.
+    - 
     - Include a short docstring for the function.
+    - Explains the exact steps needed to replicate the operation in the docstring
 
     """
 

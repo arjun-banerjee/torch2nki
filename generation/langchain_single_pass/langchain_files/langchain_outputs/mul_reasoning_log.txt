@@ -1,9 +1,0 @@
-=== Iteration 1 ===
-The input tensors are 1D vectors, so we need to remove references to shape[1] and adjust array indexing accordingly since there's only one dimension to work with
-
-=== Iteration 2 ===
-Need to use 2D indexing with nl.arange for vector operations by adding [:, None] and [None, :] to create proper dimensions for broadcasting, as 1D indexing is not supported in NKI
-
-=== Iteration 3 ===
-For element-wise multiplication of 1D vectors, we can directly use nl.multiply on the loaded tensors without needing complex indexing, since the operation is applied element-wise and the shapes are already validated to match.
-

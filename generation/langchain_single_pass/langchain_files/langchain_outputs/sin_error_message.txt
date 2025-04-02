@@ -1,8 +1,0 @@
-Running NKI kernel simulation...
-
---- Results Comparison ---
-NKI output (first 5): [ 0.9893795  -0.15343846 -0.5473947   0.03765924 -0.9391495 ]
-PyTorch output (first 5): [ 0.9893795  -0.1534383  -0.5473948   0.03765924 -0.93914956]
-
-✅ SUCCESS: NKI and PyTorch outputs match!
-

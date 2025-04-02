@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch_xla
 from torch_xla.core import xla_model as xm
 import os
+xla_device = xm.xla_device()  # or the appropriate method for your environment
+
 
 import neuronxcc.nki as nki
 import neuronxcc.nki.isa as nisa
@@ -1029,7 +1031,7 @@ def test_torch_linalg_cholesky(device, nki_linalg_cholesky):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_linalg_lu(device):
+def test_torch_linalg_lu(device, nki_linalg_lu):
     """Test LU decomposition between NKI and PyTorch implementations.
     
     Args:
@@ -1049,7 +1051,7 @@ def test_torch_linalg_lu(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_linalg_ldl_factor(device):
+def test_torch_linalg_ldl_factor(device, nki_linalg_ldl_factor):
     """Test LDL factorization between NKI and PyTorch implementations.
     
     Args:
@@ -1068,7 +1070,7 @@ def test_torch_linalg_ldl_factor(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_linalg_triangular_solve(device):
+def test_torch_linalg_triangular_solve(device, nki_linalg_triangular_solve):
     """Test triangular system solver between NKI and PyTorch implementations.
     
     Args:
@@ -1090,7 +1092,7 @@ def test_torch_linalg_triangular_solve(device):
 
 
 
-def test_torch_gelu(device):
+def test_torch_gelu(device, mlops_gelu):
     """Test GELU activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_gelu(x)
@@ -1100,7 +1102,7 @@ def test_torch_gelu(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_elu(device):
+def test_torch_elu(device, mlops_elu):
     """Test ELU activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_elu(x, alpha=1.0)
@@ -1110,7 +1112,7 @@ def test_torch_elu(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_selu(device):
+def test_torch_selu(device, mlops_selu):
     """Test SELU activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_selu(x)
@@ -1120,7 +1122,7 @@ def test_torch_selu(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_leaky_relu(device):
+def test_torch_leaky_relu(device, mlops_leaky_relu):
     """Test Leaky ReLU activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_leaky_relu(x, negative_slope=0.01)
@@ -1130,7 +1132,7 @@ def test_torch_leaky_relu(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_hardswish(device):
+def test_torch_hardswish(device, mlops_hardswish):
     """Test Hard Swish activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_hardswish(x)
@@ -1140,7 +1142,7 @@ def test_torch_hardswish(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_mse_loss(device):
+def test_torch_mse_loss(device, mlops_mse_loss):
     """Test MSE loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     target = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
@@ -1151,7 +1153,7 @@ def test_torch_mse_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_l1_loss(device):
+def test_torch_l1_loss(device, mlops_l1_loss):
     """Test L1 loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     target = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
@@ -1162,7 +1164,7 @@ def test_torch_l1_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_cross_entropy(device):
+def test_torch_cross_entropy(device, mlops_cross_entropy):
     """Test cross entropy loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 10), dtype=torch.bfloat16, device=device)
     target = torch.randint(0, 10, (64,), device=device)
@@ -1173,7 +1175,7 @@ def test_torch_cross_entropy(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_nll_loss(device):
+def test_torch_nll_loss(device, mlops_nll_loss):
     """Test NLL loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 10), dtype=torch.bfloat16, device=device)
     target = torch.randint(0, 10, (64,), device=device)
@@ -1184,7 +1186,7 @@ def test_torch_nll_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_binary_cross_entropy(device):
+def test_torch_binary_cross_entropy(device, mlops_binary_cross_entropy):
     """Test binary cross entropy loss between MLOps and PyTorch implementations."""
     input = torch.sigmoid(torch.randn((64, 128), dtype=torch.bfloat16, device=device))
     target = torch.randint(0, 2, (64, 128), device=device).to(torch.bfloat16)
@@ -1195,7 +1197,7 @@ def test_torch_binary_cross_entropy(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_hinge_embedding_loss(device):
+def test_torch_hinge_embedding_loss(device, mlops_hinge_embedding_loss):
     """Test hinge embedding loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     target = torch.randint(0, 2, (64, 128), device=device) * 2 - 1
@@ -1206,7 +1208,7 @@ def test_torch_hinge_embedding_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_kl_div(device):
+def test_torch_kl_div(device, mlops_kl_div):
     """Test KL divergence loss between MLOps and PyTorch implementations."""
     input = torch.log_softmax(torch.randn((64, 10), dtype=torch.bfloat16, device=device), dim=1)
     target = torch.softmax(torch.randn((64, 10), dtype=torch.bfloat16, device=device), dim=1)
@@ -1217,7 +1219,7 @@ def test_torch_kl_div(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_smooth_l1_loss(device):
+def test_torch_smooth_l1_loss(device, mlops_smooth_l1_loss):
     """Test Smooth L1 loss between MLOps and PyTorch implementations."""
     input = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     target = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
@@ -1228,7 +1230,7 @@ def test_torch_smooth_l1_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_cosine_embedding_loss(device):
+def test_torch_cosine_embedding_loss(device, mlops_cosine_embedding_loss):
     """Test cosine embedding loss between MLOps and PyTorch implementations."""
     input1 = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     input2 = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
@@ -1240,7 +1242,7 @@ def test_torch_cosine_embedding_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_triplet_margin_loss(device):
+def test_torch_triplet_margin_loss(device, mlops_triplet_margin_loss):
     """Test triplet margin loss between MLOps and PyTorch implementations."""
     anchor = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     positive = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
@@ -1252,7 +1254,7 @@ def test_torch_triplet_margin_loss(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_batch_norm(device):
+def test_torch_batch_norm(device, mlops_batch_norm):
     """Test batch normalization between MLOps and PyTorch implementations."""
     x = torch.randn((16, 64, 32), dtype=torch.bfloat16, device=device)
     weight = torch.randn(64, dtype=torch.bfloat16, device=device)
@@ -1264,7 +1266,7 @@ def test_torch_batch_norm(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_layer_norm(device):
+def test_torch_layer_norm(device, mlops_layer_norm):
     """Test layer normalization between MLOps and PyTorch implementations."""
     x = torch.randn((16, 64, 32), dtype=torch.bfloat16, device=device)
     normalized_shape = (64, 32)
@@ -1277,7 +1279,7 @@ def test_torch_layer_norm(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_group_norm(device):
+def test_torch_group_norm(device, mlops_group_norm):
     """Test group normalization between MLOps and PyTorch implementations."""
     x = torch.randn((16, 64, 32, 32), dtype=torch.bfloat16, device=device)
     weight = torch.randn(64, dtype=torch.bfloat16, device=device)
@@ -1289,7 +1291,7 @@ def test_torch_group_norm(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_instance_norm(device):
+def test_torch_instance_norm(device, mlops_instance_norm):
     """Test instance normalization between MLOps and PyTorch implementations."""
     x = torch.randn((16, 64, 32, 32), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_instance_norm(x, training=True)
@@ -1299,7 +1301,7 @@ def test_torch_instance_norm(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_dropout(device):
+def test_torch_dropout(device, mlops_dropout):
     """Test dropout between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_dropout(x, p=0.5, training=True)
@@ -1309,7 +1311,7 @@ def test_torch_dropout(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_alpha_dropout(device):
+def test_torch_alpha_dropout(device, mlops_alpha_dropout):
     """Test alpha dropout between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_alpha_dropout(x, p=0.5, training=True)
@@ -1319,7 +1321,7 @@ def test_torch_alpha_dropout(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_feature_alpha_dropout(device):
+def test_torch_feature_alpha_dropout(device, mlops_feature_alpha_dropout):
     """Test feature alpha dropout between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_feature_alpha_dropout(x, p=0.5, training=True)
@@ -1329,7 +1331,7 @@ def test_torch_feature_alpha_dropout(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_softshrink(device):
+def test_torch_softshrink(device, mlops_softshrink):
     """Test softshrink activation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_softshrink(x, lambd=0.5)
@@ -1339,40 +1341,40 @@ def test_torch_softshrink(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_euclidean_dist(device):
+def test_torch_euclidean_dist(device, mlops_euclidean_dist, torch_norm):
     """Test Euclidean distance computation between MLOps and a reference implementation."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     y = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     dist_mlops = mlops_euclidean_dist(x, y)
-    dist_ref = torch.norm(x - y, dim=1)
+    dist_ref = torch_norm(x - y, dim=1)
     print("Checking correctness of Euclidean distance computation...")
     match = torch.allclose(dist_ref, dist_mlops, atol=1e-3, rtol=1e-2)
     print("MLOps and reference match!" if match else "MLOps and reference differ")
     return 1 if match else 0
 
-def test_torch_cosine_similarity(device):
+def test_torch_cosine_similarity(device, mlops_cosine_similarity, torch_cosine_similarity):
     """Test cosine similarity computation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     y = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     sim_mlops = mlops_cosine_similarity(x, y, dim=1)
-    sim_torch = torch.nn.functional.cosine_similarity(x, y, dim=1)
+    sim_torch = torch_cosine_similarity(x, y, dim=1)
     print("Checking correctness of cosine similarity computation...")
     match = torch.allclose(sim_torch, sim_mlops, atol=1e-3, rtol=1e-2)
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_pairwise_distance(device):
+def test_torch_pairwise_distance(device, mlops_pairwise_distance, torch_pairwise_distance):
     """Test pairwise distance computation between MLOps and PyTorch implementations."""
     x = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     y = torch.randn((64, 128), dtype=torch.bfloat16, device=device)
     dist_mlops = mlops_pairwise_distance(x, y)
-    dist_torch = torch.nn.functional.pairwise_distance(x, y)
+    dist_torch = torch_pairwise_distance(x, y)
     print("Checking correctness of pairwise distance computation...")
     match = torch.allclose(dist_torch, dist_mlops, atol=1e-3, rtol=1e-2)
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_conv1d(device):
+def test_torch_conv1d(device, mlops_conv1d):
     """Test 1D convolution between MLOps and PyTorch implementations."""
     x = torch.randn((8, 3, 50), dtype=torch.bfloat16, device=device)
     weight = torch.randn((6, 3, 5), dtype=torch.bfloat16, device=device)
@@ -1383,7 +1385,7 @@ def test_torch_conv1d(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_conv2d(device):
+def test_torch_conv2d(device, mlops_conv2d):
     """Test 2D convolution between MLOps and PyTorch implementations."""
     x = torch.randn((8, 3, 32, 32), dtype=torch.bfloat16, device=device)
     weight = torch.randn((6, 3, 5, 5), dtype=torch.bfloat16, device=device)
@@ -1394,7 +1396,7 @@ def test_torch_conv2d(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_conv3d(device):
+def test_torch_conv3d(device, mlops_conv3d):
     """Test 3D convolution between MLOps and PyTorch implementations."""
     x = torch.randn((4, 3, 16, 16, 16), dtype=torch.bfloat16, device=device)
     weight = torch.randn((6, 3, 3, 3, 3), dtype=torch.bfloat16, device=device)
@@ -1405,7 +1407,7 @@ def test_torch_conv3d(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_conv_transpose2d(device):
+def test_torch_conv_transpose2d(device, mlops_conv_transpose2d):
     """Test transposed 2D convolution between MLOps and PyTorch implementations."""
     x = torch.randn((8, 6, 32, 32), dtype=torch.bfloat16, device=device)
     weight = torch.randn((3, 6, 5, 5), dtype=torch.bfloat16, device=device)
@@ -1416,7 +1418,7 @@ def test_torch_conv_transpose2d(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_max_pool2d(device):
+def test_torch_max_pool2d(device, mlops_max_pool2d):
     """Test 2D max pooling between MLOps and PyTorch implementations."""
     x = torch.randn((8, 3, 32, 32), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_max_pool2d(x, kernel_size=2, stride=2)
@@ -1426,7 +1428,7 @@ def test_torch_max_pool2d(device):
     print("MLOps and Torch match!" if match else "MLOps and Torch differ")
     return 1 if match else 0
 
-def test_torch_avg_pool2d(device):
+def test_torch_avg_pool2d(device, mlops_avg_pool2d):
     """Test 2D average pooling between MLOps and PyTorch implementations."""
     x = torch.randn((8, 3, 32, 32), dtype=torch.bfloat16, device=device)
     out_mlops = mlops_avg_pool2d(x, kernel_size=2, stride=2)
@@ -1438,7 +1440,7 @@ def test_torch_avg_pool2d(device):
 
 
 
-def test_torch_softmax(device):
+def test_torch_softmax(device, nki_softmax):
     """Test softmax operation between NKI and PyTorch implementations.
     
     Args:
@@ -1446,12 +1448,12 @@ def test_torch_softmax(device):
     
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
-    """
+    """ 
     # Test with a small workload
     x_small = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
     
     # Run NKI kernel
-    output_small = nki_softmax(x_small)
+    output_small = nki_softmax(x_small.to(xla_device))
     
     # Run torch reference
     output_small_torch = torch.softmax(x_small, dim=-1)
@@ -1462,7 +1464,7 @@ def test_torch_softmax(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_log_softmax(device):
+def test_torch_log_softmax(device, nki_log_softmax):
     """Test log softmax operation between NKI and PyTorch implementations.
 
     Args:
@@ -1478,7 +1480,7 @@ def test_torch_log_softmax(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_max(device):
+def test_torch_max(device, nki_max):
     """Test element-wise maximum operation between NKI and PyTorch implementations.
 
     Args:
@@ -1495,7 +1497,7 @@ def test_torch_max(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_min(device):
+def test_torch_min(device, nki_min):
     """Test element-wise minimum operation between NKI and PyTorch implementations.
 
     Args:
@@ -1512,7 +1514,7 @@ def test_torch_min(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_sum(device):
+def test_torch_sum(device, nki_sum):
     """Test summation operation between NKI and PyTorch implementations.
 
     Args:
@@ -1528,7 +1530,7 @@ def test_torch_sum(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_mean(device):
+def test_torch_mean(device, nki_mean):
     """Test mean operation between NKI and PyTorch implementations.
 
     Args:
@@ -1544,7 +1546,7 @@ def test_torch_mean(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_var(device):
+def test_torch_var(device, nki_var):
     """Test variance operation between NKI and PyTorch implementations.
 
     Args:
@@ -1560,7 +1562,7 @@ def test_torch_var(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_std(device):
+def test_torch_std(device, nki_std):
     """Test standard deviation operation between NKI and PyTorch implementations.
 
     Args:
@@ -1576,7 +1578,7 @@ def test_torch_std(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_norm(device):
+def test_torch_norm(device, nki_norm):
     """Test norm operation between NKI and PyTorch implementations.
 
     Args:
@@ -1592,7 +1594,7 @@ def test_torch_norm(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_cumsum(device):
+def test_torch_cumsum(device, nki_cumsum):
     """Test cumulative sum operation between NKI and PyTorch implementations.
     
     Args:
@@ -1609,7 +1611,7 @@ def test_torch_cumsum(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_cumprod(device):
+def test_torch_cumprod(device, nki_cumprod):
     """Test cumulative product operation between NKI and PyTorch implementations.
     
     Args:
@@ -1627,7 +1629,7 @@ def test_torch_cumprod(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_prod(device):
+def test_torch_prod(device, nki_prod):
     """Test product operation between NKI and PyTorch implementations.
     
     Args:
@@ -1644,7 +1646,7 @@ def test_torch_prod(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_round(device):
+def test_torch_round(device, nki_round):
     """Test rounding operation between NKI and PyTorch implementations.
     
     Args:
@@ -1661,7 +1663,7 @@ def test_torch_round(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_floor(device):
+def test_torch_floor(device, nki_floor):
     """Test floor operation between NKI and PyTorch implementations.
     
     Args:
@@ -1678,7 +1680,7 @@ def test_torch_floor(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_ceil(device):
+def test_torch_ceil(device, nki_ceil):
     """Test ceil operation between NKI and PyTorch implementations.
     
     Args:
@@ -1695,11 +1697,12 @@ def test_torch_ceil(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_trunc(device):
+def test_torch_trunc(device, nki_trunc):
     """Test truncation operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_trunc: NKI trunc function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1712,11 +1715,12 @@ def test_torch_trunc(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_sign(device):
+def test_torch_sign(device, nki_sign):
     """Test sign operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_sign: NKI sign function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1729,11 +1733,12 @@ def test_torch_sign(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_where(device):
+def test_torch_where(device, nki_where):
     """Test element-wise conditional selection (where) between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_where: NKI where function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1748,11 +1753,12 @@ def test_torch_where(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_eq(device):
+def test_torch_eq(device, nki_eq):
     """Test element-wise equality comparison between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_eq: NKI equality comparison function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1766,11 +1772,12 @@ def test_torch_eq(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_ne(device):
+def test_torch_ne(device, nki_ne):
     """Test element-wise inequality comparison between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_ne: NKI inequality comparison function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1784,11 +1791,12 @@ def test_torch_ne(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_gt(device):
+def test_torch_gt(device, nki_gt):
     """Test element-wise greater than comparison between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_gt: NKI greater than comparison function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1802,11 +1810,12 @@ def test_torch_gt(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_lt(device):
+def test_torch_lt(device, nki_lt):
     """Test element-wise less than comparison between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_lt: NKI less than comparison function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1820,11 +1829,12 @@ def test_torch_lt(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_clamp(device):
+def test_torch_clamp(device, nki_clamp):
     """Test clamping operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_clamp: NKI clamp function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1837,11 +1847,12 @@ def test_torch_clamp(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_sort(device):
+def test_torch_sort(device, nki_sort):
     """Test sort operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_sort: NKI sort function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1855,11 +1866,12 @@ def test_torch_sort(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_topk(device):
+def test_torch_topk(device, nki_topk):
     """Test top-k operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_topk: NKI top-k function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1874,11 +1886,12 @@ def test_torch_topk(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_kthvalue(device):
+def test_torch_kthvalue(device, nki_kthvalue):
     """Test kth value operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_kthvalue: NKI kth value function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1893,11 +1906,12 @@ def test_torch_kthvalue(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_median(device):
+def test_torch_median(device, nki_median):
     """Test median operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_median: NKI median function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1911,11 +1925,12 @@ def test_torch_median(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_mode(device):
+def test_torch_mode(device, nki_mode):
     """Test mode operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_mode: NKI mode function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1930,11 +1945,12 @@ def test_torch_mode(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_percentile(device):
+def test_torch_percentile(device, nki_percentile):
     """Test percentile operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_percentile: NKI percentile function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1948,11 +1964,12 @@ def test_torch_percentile(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_logsumexp(device):
+def test_torch_logsumexp(device, nki_logsumexp):
     """Test logsumexp operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_logsumexp: NKI logsumexp function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1965,11 +1982,12 @@ def test_torch_logsumexp(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_amax(device):
+def test_torch_amax(device, nki_amax):
     """Test amax operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_amax: NKI amax function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1982,11 +2000,12 @@ def test_torch_amax(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_amin(device):
+def test_torch_amin(device, nki_amin):
     """Test amin operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_amin: NKI amin function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -1999,11 +2018,12 @@ def test_torch_amin(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_all(device):
+def test_torch_all(device, nki_all):
     """Test all operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_all: NKI all function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -2017,11 +2037,12 @@ def test_torch_all(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_any(device):
+def test_torch_any(device, nki_any):
     """Test any operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_any: NKI any function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -2035,11 +2056,12 @@ def test_torch_any(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_bincount(device):
+def test_torch_bincount(device, nki_bincount):
     """Test bincount operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_bincount: NKI bincount function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -2052,11 +2074,12 @@ def test_torch_bincount(device):
     print("NKI and Torch match!" if match else "NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_unique(device):
+def test_torch_unique(device, nki_unique):
     """Test unique operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_unique: NKI unique function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
@@ -2071,11 +2094,12 @@ def test_torch_unique(device):
 
 
 
-def test_torch_unique_consecutive(device):
+def test_torch_unique_consecutive(device, nki_unique_consecutive):
     """Test unique consecutive operation between NKI and PyTorch implementations.
     
     Args:
         device: The device to run the test on (CPU/GPU/NPU)
+        nki_unique_consecutive: NKI unique consecutive function
         
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise

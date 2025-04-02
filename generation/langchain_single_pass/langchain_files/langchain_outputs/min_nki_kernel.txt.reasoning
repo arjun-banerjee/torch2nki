@@ -1,0 +1,10 @@
+=== Iteration 1 ===
+```
+When using nl.min(), the input tensor must be loaded into SBUF first before performing the min operation since min requires on-chip memory access. We'll load the input tensor from HBM to SBUF before calling nl.min().
+```
+
+=== Iteration 2 ===
+```
+The min operation requires performing reduction on free axes rather than partition axes, so we'll use nl.transpose to make the reduction axis a free axis before applying min.
+```
+

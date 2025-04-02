@@ -957,3 +957,786 @@ def test_torch_threshold(device, nki_vector_threshold):
                     print("...")
                     break
         return 0
+
+
+# Helper function for comparing outputs.
+def outputs_match(output_torch, output_nki):
+    # Ensure both outputs are torch.Tensors.
+    t_output = output_torch if isinstance(output_torch, torch.Tensor) else torch.tensor(output_torch)
+    n_output = torch.tensor(output_nki)
+    # For floating-point data, use allclose; otherwise, use exact equality.
+    if t_output.dtype in [torch.float32, torch.float64]:
+        return torch.allclose(t_output, n_output, atol=1e-4, rtol=1e-2)
+    else:
+        return torch.equal(t_output, n_output)
+
+# Helper function for printing the first few elements.
+def print_first_five(label, output):
+    try:
+        # If output is a scalar tensor.
+        if isinstance(output, torch.Tensor) and output.dim() == 0:
+            print(f"{label}:", output.item())
+        else:
+            # Try slicing (works for arrays and tensors with >0 elements)
+            if isinstance(output, torch.Tensor):
+                arr = output.detach().cpu().numpy()
+            elif isinstance(output, np.ndarray):
+                arr = output
+            else:
+                arr = output
+            # Print first 5 elements if possible.
+            print(f"{label} (first 5):", arr[:5] if hasattr(arr, '__getitem__') else arr)
+    except Exception as e:
+        print(f"{label}:", output)
+
+# ---------------------------
+# Test functions for single-input operations
+# ---------------------------
+
+def test_torch_softmax(device, nki_vector_softmax):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    dim = 0
+    print("Running NKI kernel simulation for softmax...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_softmax,
+        np.array(input_tensor),
+    )
+    output_torch = torch.softmax(input_tensor, dim=dim)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_log_softmax(device, nki_vector_log_softmax):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    dim = 0
+    print("Running NKI kernel simulation for log_softmax...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_log_softmax,
+        np.array(input_tensor),
+    )
+    output_torch = torch.log_softmax(input_tensor, dim=dim)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_max(device, nki_vector_max):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for max...")
+    output_nki = nki.simulate_kernel(nki_vector_max, np.array(input_tensor))
+    output_torch = torch.max(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_min(device, nki_vector_min):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for min...")
+    output_nki = nki.simulate_kernel(nki_vector_min, np.array(input_tensor))
+    output_torch = torch.min(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_sum(device, nki_vector_sum):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for sum...")
+    output_nki = nki.simulate_kernel(nki_vector_sum, np.array(input_tensor))
+    output_torch = torch.sum(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_mean(device, nki_vector_mean):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for mean...")
+    output_nki = nki.simulate_kernel(nki_vector_mean, np.array(input_tensor))
+    output_torch = torch.mean(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_var(device, nki_vector_var):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for var...")
+    output_nki = nki.simulate_kernel(nki_vector_var, np.array(input_tensor))
+    output_torch = torch.var(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_std(device, nki_vector_std):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for std...")
+    output_nki = nki.simulate_kernel(nki_vector_std, np.array(input_tensor))
+    output_torch = torch.std(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_norm(device, nki_vector_norm):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for norm...")
+    output_nki = nki.simulate_kernel(nki_vector_norm, np.array(input_tensor))
+    output_torch = torch.norm(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_cumsum(device, nki_vector_cumsum):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    dim = 0
+    print("Running NKI kernel simulation for cumsum...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_cumsum,
+        np.array(input_tensor),
+        np.array([dim])
+    )
+    output_torch = torch.cumsum(input_tensor, dim=dim)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_cumprod(device, nki_vector_cumprod):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) + 0.1  # avoid zeros
+    dim = 0
+    print("Running NKI kernel simulation for cumprod...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_cumprod,
+        np.array(input_tensor),
+    )
+    output_torch = torch.cumprod(input_tensor, dim=dim)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_prod(device, nki_vector_prod):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) + 0.1  # avoid zero values
+    print("Running NKI kernel simulation for prod...")
+    output_nki = nki.simulate_kernel(nki_vector_prod, np.array(input_tensor))
+    output_torch = torch.prod(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_round(device, nki_vector_round):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) * 10
+    print("Running NKI kernel simulation for round...")
+    output_nki = nki.simulate_kernel(nki_vector_round, np.array(input_tensor))
+    output_torch = torch.round(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_floor(device, nki_vector_floor):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) * 10
+    print("Running NKI kernel simulation for floor...")
+    output_nki = nki.simulate_kernel(nki_vector_floor, np.array(input_tensor))
+    output_torch = torch.floor(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_ceil(device, nki_vector_ceil):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) * 10
+    print("Running NKI kernel simulation for ceil...")
+    output_nki = nki.simulate_kernel(nki_vector_ceil, np.array(input_tensor))
+    output_torch = torch.ceil(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_trunc(device, nki_vector_trunc):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) * 10 - 5  # include negatives
+    print("Running NKI kernel simulation for trunc...")
+    output_nki = nki.simulate_kernel(nki_vector_trunc, np.array(input_tensor))
+    output_torch = torch.trunc(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_sign(device, nki_vector_sign):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,)) * 2 - 1  # values in [-1, 1]
+    print("Running NKI kernel simulation for sign...")
+    output_nki = nki.simulate_kernel(nki_vector_sign, np.array(input_tensor))
+    output_torch = torch.sign(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+# ---------------------------
+# Test functions for multi-input or comparison operations
+# ---------------------------
+
+def test_torch_where(device, nki_vector_where):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    condition = input_tensor > 0.5
+    x = input_tensor
+    y = -input_tensor
+    print("Running NKI kernel simulation for where...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_where,
+        np.array(condition),
+        np.array(x),
+        np.array(y)
+    )
+    output_torch = torch.where(condition, x, y)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_eq(device, nki_vector_eq):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    other_tensor = torch.full(input_tensor.shape, 0.5)
+    print("Running NKI kernel simulation for eq...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_eq,
+        np.array(input_tensor),
+        np.array(other_tensor)
+    )
+    output_torch = torch.eq(input_tensor, other_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_ne(device, nki_vector_ne):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    other_tensor = torch.full(input_tensor.shape, 0.5)
+    print("Running NKI kernel simulation for ne...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_ne,
+        np.array(input_tensor),
+        np.array(other_tensor)
+    )
+    output_torch = torch.ne(input_tensor, other_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_gt(device, nki_vector_gt):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    other_tensor = torch.full(input_tensor.shape, 0.5)
+    print("Running NKI kernel simulation for gt...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_gt,
+        np.array(input_tensor),
+        np.array(other_tensor)
+    )
+    output_torch = torch.gt(input_tensor, other_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_lt(device, nki_vector_lt):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    other_tensor = torch.full(input_tensor.shape, 0.5)
+    print("Running NKI kernel simulation for lt...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_lt,
+        np.array(input_tensor),
+        np.array(other_tensor)
+    )
+    output_torch = torch.lt(input_tensor, other_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_clamp(device, nki_vector_clamp):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    min_val = 0.3
+    max_val = 0.7
+    print("Running NKI kernel simulation for clamp...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_clamp,
+        np.array(input_tensor),
+        np.array([min_val, max_val])
+    )
+    output_torch = torch.clamp(input_tensor, min=min_val, max=max_val)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_sort(device, nki_vector_sort):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for sort...")
+    output_nki = nki.simulate_kernel(nki_vector_sort, np.array(input_tensor))
+    # Assume NKI returns only the sorted values.
+    output_torch = torch.sort(input_tensor)[0]
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_topk(device, nki_vector_topk):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    k = 5
+    print("Running NKI kernel simulation for topk...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_topk,
+        np.array(input_tensor),
+        np.array([k])
+    )
+    # Compare only the values (not the indices).
+    output_torch = torch.topk(input_tensor, k=k)[0]
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_kthvalue(device, nki_vector_kthvalue):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    k = 3
+    print("Running NKI kernel simulation for kthvalue...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_kthvalue,
+        np.array(input_tensor),
+        np.array([k])
+    )
+    output_torch = torch.kthvalue(input_tensor, k=k).values
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_median(device, nki_vector_median):
+    np.random.seed(0)
+    # Use an odd-length tensor so that median is unambiguous.
+    input_tensor = torch.rand((129,))
+    print("Running NKI kernel simulation for median...")
+    output_nki = nki.simulate_kernel(nki_vector_median, np.array(input_tensor))
+    output_torch = torch.median(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_mode(device, nki_vector_mode):
+    np.random.seed(0)
+    # Use integer values to get meaningful mode results.
+    input_tensor = torch.randint(0, 5, (128,))
+    print("Running NKI kernel simulation for mode...")
+    output_nki = nki.simulate_kernel(nki_vector_mode, np.array(input_tensor))
+    # Compare only the mode values (not indices).
+    output_torch = torch.mode(input_tensor).values
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item() if output_torch.dim()==0 else output_torch[:5].numpy())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_percentile(device, nki_vector_percentile):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    q = 50  # 50th percentile (median)
+    print("Running NKI kernel simulation for percentile...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_percentile,
+        np.array(input_tensor),
+        np.array([q])
+    )
+    output_torch = torch.percentile(input_tensor, q)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_logsumexp(device, nki_vector_logsumexp):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    dim = 0
+    print("Running NKI kernel simulation for logsumexp...")
+    output_nki = nki.simulate_kernel(
+        nki_vector_logsumexp,
+        np.array(input_tensor),
+    )
+    output_torch = torch.logsumexp(input_tensor, dim=dim)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_amax(device, nki_vector_amax):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for amax...")
+    output_nki = nki.simulate_kernel(nki_vector_amax, np.array(input_tensor))
+    output_torch = torch.amax(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_amin(device, nki_vector_amin):
+    np.random.seed(0)
+    input_tensor = torch.rand((128,))
+    print("Running NKI kernel simulation for amin...")
+    output_nki = nki.simulate_kernel(nki_vector_amin, np.array(input_tensor))
+    output_torch = torch.amin(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.item())
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_all(device, nki_vector_all):
+    np.random.seed(0)
+    # Create a boolean tensor.
+    input_tensor = (torch.rand((128,)) > 0.3)
+    print("Running NKI kernel simulation for all...")
+    output_nki = nki.simulate_kernel(nki_vector_all, np.array(input_tensor))
+    output_torch = torch.all(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", bool(output_torch))
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_any(device, nki_vector_any):
+    np.random.seed(0)
+    input_tensor = (torch.rand((128,)) > 0.7)
+    print("Running NKI kernel simulation for any...")
+    output_nki = nki.simulate_kernel(nki_vector_any, np.array(input_tensor))
+    output_torch = torch.any(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", bool(output_torch))
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_bincount(device, nki_vector_bincount):
+    np.random.seed(0)
+    input_tensor = torch.randint(0, 10, (128,))
+    print("Running NKI kernel simulation for bincount...")
+    output_nki = nki.simulate_kernel(nki_vector_bincount, np.array(input_tensor))
+    output_torch = torch.bincount(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_unique(device, nki_vector_unique):
+    np.random.seed(0)
+    input_tensor = torch.randint(0, 10, (128,))
+    print("Running NKI kernel simulation for unique...")
+    output_nki = nki.simulate_kernel(nki_vector_unique, np.array(input_tensor))
+    output_torch = torch.unique(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+
+def test_torch_unique_consecutive(device, nki_vector_unique_consecutive):
+    np.random.seed(0)
+    # Create a tensor with consecutive duplicates.
+    base = torch.randint(0, 5, (64,))
+    input_tensor = torch.repeat_interleave(base, repeats=2)
+    print("Running NKI kernel simulation for unique_consecutive...")
+    output_nki = nki.simulate_kernel(nki_vector_unique_consecutive, np.array(input_tensor))
+    output_torch = torch.unique_consecutive(input_tensor)
+    
+    print("\n--- Results Comparison ---")
+    print_first_five("NKI output", output_nki)
+    print_first_five("PyTorch output", output_torch)
+    
+    if outputs_match(output_torch, output_nki):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0

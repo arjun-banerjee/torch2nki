@@ -5,14 +5,15 @@ import logging
 from functools import wraps
 from typing import Callable, Any, Dict, List, Optional, Union
 
-# Set up logging
+# Set up logging with NullHandler to suppress console output
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.NullHandler()]  # Use NullHandler instead of default StreamHandler
 )
 logger = logging.getLogger('rate_limit_handler')
 
-def retry_with_backoff(max_retries=60, base_delay=50, max_delay=150):
+def retry_with_backoff(max_retries=60, base_delay=10, max_delay=150):
     """
     Decorator for implementing exponential backoff with jitter.
     
@@ -59,7 +60,7 @@ def retry_with_backoff(max_retries=60, base_delay=50, max_delay=150):
     return decorator
 
 # Create a function specifically for chain invocation
-def invoke_chain_with_retry(chain, params, max_retries=60, base_delay=50, max_delay=150, log_to_file_func=None):
+def invoke_chain_with_retry(chain, params, max_retries=60, base_delay=10, max_delay=150, log_to_file_func=None):
     """
     Safely invoke a LangChain chain with retry logic for rate limiting.
     

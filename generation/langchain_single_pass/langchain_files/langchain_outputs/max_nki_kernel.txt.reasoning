@@ -1,0 +1,50 @@
+=== Iteration 1 ===
+```
+The error indicates we need to load the tensor from HBM into SBUF memory before performing max operation, so we'll add nl.load() before calling nl.max()
+```
+
+=== Iteration 2 ===
+```
+Since reduction on partition axes is not supported, we need to iterate over the partition axis using nl.affine_range and use nl.max on free axes only, keeping track of the maximum value seen so far in a psum buffer
+```
+
+=== Iteration 3 ===
+```
+To fix the "tuple index out of range" error, we need to initialize the max value using the first element of the tensor and then iterate through the rest, comparing each element to update the current maximum. We'll use nl.load() to load values from HBM into SBUF before comparison.
+```
+
+=== Iteration 4 ===
+```
+Instead of using direct comparison operators (>), we should use nl.maximum() to compare InstTile objects and find the maximum value element-wise, as this is the NKI-supported way to handle tile comparisons
+```
+
+=== Iteration 5 ===
+```
+The error indicates we need to handle partition axes correctly in the max operation, so we'll use nl.maximum to compare elements along the partition axis and accumulate the result in a psum buffer while properly handling tensor shapes and memory spaces.
+```
+
+=== Iteration 6 ===
+```
+Instead of using a tuple index directly, we'll implement max by using nl.maximum directly on the loaded tensor and storing the result back to result array
+```
+
+=== Iteration 7 ===
+```
+To fix the tile inference error, we'll use nl.maximum with a reshape to ensure the first dimension is the partition dimension by using nl.reshape() on a_tensor to make it a 1D tensor before computing max
+```
+
+=== Iteration 8 ===
+```
+Instead of trying to compute max using comparisons or reductions, we'll use nl.load() to get the tensor into SBUF and then use nl.maximum directly on the entire tensor at once, which is the NKI-supported way to find the maximum value
+```
+
+=== Iteration 9 ===
+```
+To find the maximum value in a tensor, we'll reduce the tensor along all dimensions using nl.max with axis=0, which correctly handles reduction operations on free dimensions while keeping partitioned dimensions intact
+```
+
+=== Iteration 10 ===
+```
+To find the maximum value across a tensor, we'll process it in chunks using nl.affine_range to iterate over the partition dimension, using nl.maximum to compare elements pair-wise and accumulating the result in a psum buffer, which avoids the unsupported reduction operation on partition axes
+```
+

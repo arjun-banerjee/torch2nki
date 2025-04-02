@@ -1,0 +1,50 @@
+=== Iteration 1 ===
+```
+The error occurs because we need to load the tensor from HBM into SBUF before performing mean operation, so we'll add nl.load() before calculating the mean
+```
+
+=== Iteration 2 ===
+```
+To fix the "Expected operand 'x' of 'mean' to be in address space 'psum|sbuf'" error, we need to first load the tensor from HBM into SBUF before calculating mean and variance, then store the final result back to HBM.
+```
+
+=== Iteration 3 ===
+```
+To fix the zero output issue, we need to store the variance calculation result back into the result array using nl.store() before returning, and ensure we're calculating mean and variance correctly by loading into SBUF first
+```
+
+=== Iteration 4 ===
+```
+To fix the zero output issue and match PyTorch's variance calculation, we need to use nl.mean on the input tensor first, then subtract this mean from each element (broadcast), square the differences, and take the mean of those squared differences - all while properly handling the data in SBUF memory
+```
+
+=== Iteration 5 ===
+```
+To fix the zero output issue, we need to store the calculated variance into result using nl.store() and ensure proper data movement between SBUF and HBM by loading the input tensor into SBUF first, then performing mean and variance calculations, and finally storing back to HBM
+```
+
+=== Iteration 6 ===
+```
+To fix the zero output issue, we need to properly calculate variance by first loading tensor into SBUF, computing mean and squared differences, then using an intermediate PSUM buffer for accumulation before storing back to HBM since variance requires reduction operations
+```
+
+=== Iteration 7 ===
+```
+To fix the zero output issue, we'll use nl.zeros with PSUM buffer for intermediate calculations since variance requires reduction operations, then store the final result properly using nl.store to transfer from PSUM to HBM
+```
+
+=== Iteration 8 ===
+```
+To fix the zero output issue, we need to calculate variance in PSUM buffer for proper reduction operations, then broadcast the mean correctly across all dimensions using keepdims=True, and finally store back to HBM using proper dimension alignment
+```
+
+=== Iteration 9 ===
+```
+To fix the zero output issue in the variance calculation, we need to ensure proper memory handling by first loading into SBUF, calculating mean and squared differences in PSUM buffer for reduction operations, then storing the final variance result back to HBM using correct dimension alignment and broadcasting
+```
+
+=== Iteration 10 ===
+```
+To fix the zero output issue, we need to calculate the variance using PSUM buffer for accumulation and proper broadcasting by: 1) Loading tensor into SBUF, 2) Computing mean with keepdims=True, 3) Computing squared differences, 4) Taking mean of squared differences with proper memory handling between PSUM and SBUF, and 5) Storing final result in HBM using proper alignment
+```
+

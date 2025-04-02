@@ -791,7 +791,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 # Pause for review before the next iteration if needed
                 if iteration < max_iterations - 1:
                     log_to_file(trace_log_path, "WAITING FOR USER INPUT TO CONTINUE TO NEXT ITERATION...")
-                    input("Press Enter to continue to the next iteration (or Ctrl+C to exit)...")
+                    #input("Press Enter to continue to the next iteration (or Ctrl+C to exit)...")
 
                     
                     print("Kernel generation process completed.")
@@ -830,42 +830,102 @@ def generate_kernel_with_direct_docs_and_error_loop(
 if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
-    elementwise_operators = [
-        "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
-        "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
-        "tanh", "sigmoid", "relu", "threshold"
+    
+    # multi_element_operators = [
+    #     "softmax", "log_softmax", "max", "min", "sum", "mean", "var", "std", "norm",
+    #     "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
+    #     "where", "eq", "ne", "gt", "lt", "clamp", "sort", "topk", "kthvalue", "median",
+    #     "mode", "percentile", "logsumexp", "amax", "amin", "all", "any", "bincount",
+    #     "unique", "unique_consecutive"
+    # ]
+
+    # multi_element_test_names = [
+    #     "test_torch_softmax",
+    #     "test_torch_log_softmax",
+    #     "test_torch_max",
+    #     "test_torch_min",
+    #     "test_torch_sum",
+    #     "test_torch_mean",
+    #     "test_torch_var",
+    #     "test_torch_std",
+    #     "test_torch_norm",
+    #     "test_torch_cumsum",
+    #     "test_torch_cumprod",
+    #     "test_torch_prod",
+    #     "test_torch_round",
+    #     "test_torch_floor",
+    #     "test_torch_ceil",
+    #     "test_torch_trunc",
+    #     "test_torch_sign",
+    #     "test_torch_where",
+    #     "test_torch_eq",
+    #     "test_torch_ne",
+    #     "test_torch_gt",
+    #     "test_torch_lt",
+    #     "test_torch_clamp",
+    #     "test_torch_sort",
+    #     "test_torch_topk",
+    #     "test_torch_kthvalue",
+    #     "test_torch_median",
+    #     "test_torch_mode",
+    #     "test_torch_percentile",
+    #     "test_torch_logsumexp",
+    #     "test_torch_amax",
+    #     "test_torch_amin",
+    #     "test_torch_all",
+    #     "test_torch_any",
+    #     "test_torch_bincount",
+    #     "test_torch_unique",
+    #     "test_torch_unique_consecutive"
+    # ]
+
+    # tests_passed_dict = {}
+
+    # elementwise_operators = [
+    #     "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
+    #     "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
+    #     "tanh", "sigmoid", "relu", "threshold"
+    # ]
+    # elementwise_test_names = [
+    #     "test_torch_addition",
+    #     "test_torch_subtraction",
+    #     "test_torch_multiplication",
+    #     "test_torch_division",
+    #     "test_torch_absolute",
+    #     "test_torch_exponential",
+    #     "test_torch_log",
+    #     "test_torch_sqrt",
+    #     "test_torch_rsqrt",
+    #     "test_torch_power",
+    #     "test_torch_sine",
+    #     "test_torch_cosine",
+    #     "test_torch_tangent",
+    #     "test_torch_arcsine",
+    #     "test_torch_arccosine",
+    #     "test_torch_arctangent",
+    #     "test_torch_hyperbolic_sine",
+    #     "test_torch_hyperbolic_cosine",
+    #     "test_torch_hyperbolic_tangent",
+    #     "test_torch_sigmoid",
+    #     "test_torch_relu",
+    #     "test_torch_threshold"
+    # ]   
+
+    multi_element_operators = [
+        "sum"
     ]
-    test_names = [
-        "test_torch_addition",
-        "test_torch_subtraction",
-        "test_torch_multiplication",
-        "test_torch_division",
-        "test_torch_absolute",
-        "test_torch_exponential",
-        "test_torch_log",
-        "test_torch_sqrt",
-        "test_torch_rsqrt",
-        "test_torch_power",
-        "test_torch_sine",
-        "test_torch_cosine",
-        "test_torch_tangent",
-        "test_torch_arcsine",
-        "test_torch_arccosine",
-        "test_torch_arctangent",
-        "test_torch_hyperbolic_sine",
-        "test_torch_hyperbolic_cosine",
-        "test_torch_hyperbolic_tangent",
-        "test_torch_sigmoid",
-        "test_torch_relu",
-        "test_torch_threshold"
+
+    multi_element_test_names = [
+        "test_torch_sum",
     ]
+
     tests_passed_dict = {}
 
-    for i in range(len(elementwise_operators)):
-        operator = elementwise_operators[i]
-        test_name = test_names[i]
+    for i in range(len(multi_element_operators)):
+        operator = multi_element_operators[i]
+        test_name = multi_element_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
-        user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_kernel.txt"
+        user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
         output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"
         kernel_module_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.py"
         test_script_output = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_error_message.txt"
@@ -879,7 +939,7 @@ if __name__ == "__main__":
 
         
         # Run the updated generator with direct documentation and error loop
-        generate_kernel_with_direct_docs_and_error_loop(
+        result = generate_kernel_with_direct_docs_and_error_loop(
             kernel_func_name,
             system_prompt_path,
             user_prompt_path,
@@ -890,9 +950,10 @@ if __name__ == "__main__":
             reasoning_log_path,
             error_doc_path,
             docs_dir,
-            max_iterations=15
+            max_iterations=10
         )
-        if generate_kernel_with_direct_docs_and_error_loop:
+        if result:
+            print(result)
             tests_passed_dict[operator] = True
         else:
             tests_passed_dict[operator] = False

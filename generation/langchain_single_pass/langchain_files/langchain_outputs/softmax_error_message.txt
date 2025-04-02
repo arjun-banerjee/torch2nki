@@ -1,0 +1,8 @@
+Running NKI kernel simulation for softmax...
+
+--- Results Comparison ---
+NKI output (first 5): [1. 1. 1. 1. 1.]
+PyTorch output (first 5): [0.00671531 0.00819368 0.00833127 0.00566148 0.00618477]
+
+❌ ERROR: NKI and PyTorch outputs differ!
+
