@@ -1,0 +1,27 @@
+***I will implement a multi-dot product kernel using nl.matmul for matrix multiplication chain computation, properly managing memory transfers between HBM and SBUF buffers with float32 dtype, and ensuring transposed matrix multiplications with axis=1 are used throughout***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_linalg_multi_dot(*matrices):
+    # Initialize result with first matrix shape and dtype
+    result = nl.ndarray(matrices[0].shape, dtype=nl.float32, buffer=nl.shared_hbm)
+    
+    # Load and store first matrix into result, transposing for axis=1 alignment
+    first_matrix = nl.load(matrices[0], dtype=nl.float32)
+    temp = nl.transpose(nl.matmul(nl.transpose(first_matrix), nl.transpose(nl.load(matrices[1], dtype=nl.float32)), transpose_x=True, dtype=nl.float32), dtype=nl.float32)
+    nl.store(result, temp)
+    
+    # Iterate through remaining matrices doing chain multiplication
+    for i in range(2, len(matrices)):
+        curr_matrix = nl.load(matrices[i], dtype=nl.float32)
+        prev_result = nl.load(result, dtype=nl.float32)
+        
+        # Perform matrix multiplication with proper transposition
+        temp = nl.transpose(nl.matmul(nl.transpose(prev_result), nl.transpose(curr_matrix), transpose_x=True, dtype=nl.float32), dtype=nl.float32)
+        nl.store(result, temp)
+    
+    return result
+```

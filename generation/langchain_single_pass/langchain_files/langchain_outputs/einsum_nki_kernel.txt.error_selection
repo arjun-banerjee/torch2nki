@@ -1,0 +1,29 @@
+ERROR MESSAGE:
+Running NKI kernel simulation...
+Error running test: Expected operand 'dst' of 'store' to be in address space 'hbm', but got a tile in 'sbuf' instead.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-unsupported-memory
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/test_sim.py", line 2324, in test_torch_einsum
+    output_nki = nki.simulate_kernel(
+  File "neuronxcc/nki/compile.py", line 37, in neuronxcc.nki.compile.simulate_kernel
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 274, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 275, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 361, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.call_impl
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/einsum_nki_kernel.py", line 18, in nki_einsum
+    nl.store(x_sbuf, nl.load(x, dtype=nl.float32))
+TypeError: Expected operand 'dst' of 'store' to be in address space 'hbm', but got a tile in 'sbuf' instead.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-unsupported-memory
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

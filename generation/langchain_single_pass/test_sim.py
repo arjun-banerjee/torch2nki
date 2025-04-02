@@ -933,7 +933,8 @@ def test_torch_threshold(device, nki_vector_threshold):
     output_nki = nki.simulate_kernel(
         nki_vector_threshold,
         np.array(input_tensor),
-        np.array([threshold_val, replacement_val])
+        threshold_val,
+        replacement_val
     )
     
     output_torch = torch.threshold(input_tensor, threshold_val, replacement_val)
@@ -1171,7 +1172,6 @@ def test_torch_cumsum(device, nki_vector_cumsum):
     output_nki = nki.simulate_kernel(
         nki_vector_cumsum,
         np.array(input_tensor),
-        np.array([dim])
     )
     output_torch = torch.cumsum(input_tensor, dim=dim)
     
@@ -1447,7 +1447,8 @@ def test_torch_clamp(device, nki_vector_clamp):
     output_nki = nki.simulate_kernel(
         nki_vector_clamp,
         np.array(input_tensor),
-        np.array([min_val, max_val])
+        min_val,
+        max_val
     )
     output_torch = torch.clamp(input_tensor, min=min_val, max=max_val)
     
@@ -1739,4 +1740,795 @@ def test_torch_unique_consecutive(device, nki_vector_unique_consecutive):
         return 1
     else:
         print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        return 0
+    
+
+
+def test_torch_inner(device, nki_inner):
+    """Test inner product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_inner: The NKI kernel function for inner product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((10,))
+    rhs_small = torch.rand((10,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_inner,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.inner(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        print(f"PyTorch={float(output_torch):.6f}, NKI={float(output_nki):.6f}, Diff={abs(float(output_torch) - float(output_nki)):.6f}")
+        return 0
+
+def test_torch_outer(device, nki_outer):
+    """Test outer product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_outer: The NKI kernel function for outer product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((10,))
+    rhs_small = torch.rand((12,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_outer,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.outer(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(output_nki.shape[0]):
+            for j in range(output_nki.shape[1]):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                    if diff_count >= 10:  # Limit to 10 differences
+                        print("...")
+                        break
+            if diff_count >= 10:
+                break
+        
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_dot(device, nki_dot):
+    """Test dot product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_dot: The NKI kernel function for dot product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((10,))
+    rhs_small = torch.rand((10,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_dot,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.dot(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        print(f"PyTorch={float(output_torch):.6f}, NKI={float(output_nki):.6f}, Diff={abs(float(output_torch) - float(output_nki)):.6f}")
+        return 0
+
+def test_torch_vdot(device, nki_vdot):
+    """Test vdot product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_vdot: The NKI kernel function for vdot product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((10,))
+    rhs_small = torch.rand((10,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_vdot,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.vdot(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        print(f"PyTorch={float(output_torch):.6f}, NKI={float(output_nki):.6f}, Diff={abs(float(output_torch) - float(output_nki)):.6f}")
+        return 0
+
+def test_torch_cross(device, nki_cross):
+    """Test cross product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_cross: The NKI kernel function for cross product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((3,))
+    rhs_small = torch.rand((3,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_cross,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.cross(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output:", output_nki)
+    print("PyTorch output:", output_torch.numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        for i in range(len(output_nki)):
+            diff = abs(float(output_torch[i]) - float(output_nki[i]))
+            if diff > 1e-4:
+                print(f"Element {i}: PyTorch={float(output_torch[i]):.6f}, NKI={float(output_nki[i]):.6f}, Diff={diff:.6f}")
+                diff_count += 1
+        return 0
+
+def test_torch_matmul(device, nki_matmul):
+    """Test matrix multiplication operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_matmul: The NKI kernel function for matrix multiplication
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((64, 128))
+    rhs_small = torch.rand((128, 32))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_matmul,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.matmul(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(5, output_nki.shape[0])):
+            for j in range(min(5, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                    if diff_count >= 10:  # Limit to 10 differences
+                        print("...")
+                        break
+            if diff_count >= 10:
+                break
+        
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_mm(device, nki_mm):
+    """Test matrix-matrix multiplication (mm) operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_mm: The NKI kernel function for matrix-matrix multiplication
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((64, 128))
+    rhs_small = torch.rand((128, 32))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_mm,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.mm(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(5, output_nki.shape[0])):
+            for j in range(min(5, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                    if diff_count >= 10:  # Limit to 10 differences
+                        print("...")
+                        break
+            if diff_count >= 10:
+                break
+        
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_mv(device, nki_mv):
+    """Test matrix-vector multiplication (mv) operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_mv: The NKI kernel function for matrix-vector multiplication
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((64, 128))
+    rhs_small = torch.rand((128,))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_mv,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.mv(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5):", output_nki[:5])
+    print("PyTorch output (first 5):", output_torch[:5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        for i in range(len(output_nki)):
+            diff = abs(float(output_torch[i]) - float(output_nki[i]))
+            if diff > 1e-4:
+                print(f"Element {i}: PyTorch={float(output_torch[i]):.6f}, NKI={float(output_nki[i]):.6f}, Diff={diff:.6f}")
+                diff_count += 1
+                if diff_count >= 10:  # Limit to 10 differences
+                    print("...")
+                    break
+        return 0
+
+def test_torch_bmm(device, nki_bmm):
+    """Test batch matrix-matrix multiplication (bmm) operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_bmm: The NKI kernel function for batch matrix-matrix multiplication
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((10, 64, 128))
+    rhs_small = torch.rand((10, 128, 32))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_bmm,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.bmm(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first batch, 5x5):", output_nki[0, :5, :5])
+    print("PyTorch output (first batch, 5x5):", output_torch[0, :5, :5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0, 0)
+        for b in range(min(2, output_nki.shape[0])):
+            for i in range(min(3, output_nki.shape[1])):
+                for j in range(min(3, output_nki.shape[2])):
+                    diff = abs(float(output_torch[b, i, j]) - float(output_nki[b, i, j]))
+                    if diff > max_diff:
+                        max_diff = diff
+                        max_diff_idx = (b, i, j)
+                    if diff > 1e-4:
+                        print(f"Element [{b},{i},{j}]: PyTorch={float(output_torch[b, i, j]):.6f}, NKI={float(output_nki[b, i, j]):.6f}, Diff={diff:.6f}")
+                        diff_count += 1
+                        if diff_count >= 10:  # Limit to 10 differences
+                            print("...")
+                            break
+                if diff_count >= 10:
+                    break
+            if diff_count >= 10:
+                break
+        
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_hadamard(device, nki_hadamard):
+    """Test Hadamard (element-wise) product operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_hadamard: The NKI kernel function for Hadamard product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    lhs_small = torch.rand((64, 128))
+    rhs_small = torch.rand((64, 128))
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_hadamard,
+        np.array(lhs_small),
+        np.array(rhs_small)
+    )
+        
+    # Compare with PyTorch reference
+    output_torch = torch.mul(lhs_small, rhs_small)
+        
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+        
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(5, output_nki.shape[0])):
+            for j in range(min(5, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                    if diff_count >= 10:  # Limit to 10 differences
+                        print("...")
+                        break
+            if diff_count >= 10:
+                break
+        
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_tensordot(device, nki_tensordot):
+    """Test tensordot operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_tensordot: The NKI kernel function for tensordot operation
+        
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    a = torch.rand((4, 5, 6), dtype=torch.bfloat16, device=device)
+    b = torch.rand((6, 7, 8), dtype=torch.bfloat16, device=device)
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_tensordot,
+        a.to(torch.float32).numpy(),
+        b.to(torch.float32).numpy(),
+    )
+    
+    # Compare with PyTorch reference
+    output_torch = torch.tensordot(a, b, dims=([2], [0]))
+    
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+    
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(3, output_nki.shape[0])):
+            for j in range(min(3, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                if diff_count >= 10:  # Limit to 10 differences
+                    print("...")
+                    break
+            if diff_count >= 10:
+                break
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_einsum(device, nki_einsum):
+    """Test einsum operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_einsum: The NKI kernel function for einsum operation
+        
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    a = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
+    b = torch.rand((128, 32), dtype=torch.bfloat16, device=device)
+    equation = "ij,jk->ik"
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_einsum,
+        equation,
+        a.to(torch.float32).numpy(),
+        b.to(torch.float32).numpy(),
+    )
+    
+    # Compare with PyTorch reference
+    output_torch = torch.einsum(equation, a, b)
+    
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first a: 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].to(torch.float32).numpy())
+    
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(3, output_nki.shape[0])):
+            for j in range(min(3, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                if diff_count >= 10:  # Limit to 10 differences
+                    print("...")
+                    break
+            if diff_count >= 10:
+                break
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+def test_torch_kron(device, nki_kron):
+    """Test Kronecker product operation between NKI and PyTorch implementations.
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_kron: The NKI kernel function for Kronecker product
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    a = torch.rand((3, 3), dtype=torch.bfloat16, device=device)
+    b = torch.rand((3, 3), dtype=torch.bfloat16, device=device)
+    print("Running NKI kernel simulation...")
+    
+    # Run NKI kernel using simulate_kernel with float32 inputs
+    output_nki = nki.simulate_kernel(
+        nki_kron,
+        a.to(torch.float32).numpy(),
+        b.to(torch.float32).numpy(),
+    )
+    
+    # Compare with PyTorch reference - convert output_torch to float32 BEFORE comparison
+    output_torch = torch.kron(a, b).to(torch.float32)
+    
+    # Convert NKI output to tensor for comparison
+    output_nki_tensor = torch.tensor(output_nki, dtype=torch.float32, device=device)
+    
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].cpu().numpy())
+    
+    # allclose check - both tensors are now float32
+    if torch.allclose(output_torch, output_nki_tensor, atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(3, output_nki.shape[0])):
+            for j in range(min(3, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j].cpu()) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j].cpu()):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                if diff_count >= 10:  # Limit to 10 differences
+                    print("...")
+                    break
+                if diff_count >= 10:
+                    break
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+        
+def test_torch_linalg_vecdot(device, nki_linalg_vecdot):
+    """Test linalg_vecdot operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_linalg_vecdot: The NKI kernel function for vector dot product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    a = torch.rand((5, 10), dtype=torch.bfloat16, device=device)
+    b = torch.rand((5, 10), dtype=torch.bfloat16, device=device)
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_linalg_vecdot,
+        a.to(torch.float32).numpy(),
+        b.to(torch.float32).numpy(),
+        dim=1
+    )
+    
+    # Compare with PyTorch reference
+    output_torch = torch.linalg.vecdot(a, b, dim=1)
+    
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5):", output_nki[:5])
+    print("PyTorch output (first 5):", output_torch[:5].numpy())
+    
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = 0
+        for i in range(min(5, output_nki.shape[0])):
+            diff = abs(float(output_torch[i]) - float(output_nki[i]))
+            if diff > max_diff:
+                max_diff = diff
+                max_diff_idx = i
+            if diff > 1e-4:
+                print(f"Element [{i}]: PyTorch={float(output_torch[i]):.6f}, NKI={float(output_nki[i]):.6f}, Diff={diff:.6f}")
+                diff_count += 1
+            if diff_count >= 10:  # Limit to 10 differences
+                print("...")
+                break
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
+        return 0
+
+def test_torch_linalg_multi_dot(device, nki_linalg_multi_dot):
+    """Test linalg_multi_dot operation between NKI and PyTorch implementations.
+    
+    Args:
+        device: The device to run the test on (CPU/GPU/NPU)
+        nki_linalg_multi_dot: The NKI kernel function for multi-dot product
+    
+    Returns:
+        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    """
+    np.random.seed(0)
+    A = torch.rand((10, 20), dtype=torch.bfloat16, device=device)
+    B = torch.rand((20, 30), dtype=torch.bfloat16, device=device)
+    C = torch.rand((30, 40), dtype=torch.bfloat16, device=device)
+    matrices = [A, B, C]
+    
+    print("Running NKI kernel simulation...")
+    # Run NKI kernel using simulate_kernel
+    output_nki = nki.simulate_kernel(
+        nki_linalg_multi_dot,
+        [np.array(m) for m in matrices]
+    )
+    
+    # Compare with PyTorch reference
+    output_torch = torch.linalg.multi_dot(matrices)
+    
+    # Print comparison
+    print("\n--- Results Comparison ---")
+    print("NKI output (first 5x5):", output_nki[:5, :5])
+    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
+    
+    # allclose check
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+        print("\n✅ SUCCESS: NKI and PyTorch outputs match!")
+        return 1
+    else:
+        print("\n❌ ERROR: NKI and PyTorch outputs differ!")
+        # Print detailed comparison
+        diff_count = 0
+        max_diff = 0
+        max_diff_idx = (0, 0)
+        for i in range(min(3, output_nki.shape[0])):
+            for j in range(min(3, output_nki.shape[1])):
+                diff = abs(float(output_torch[i, j]) - float(output_nki[i, j]))
+                if diff > max_diff:
+                    max_diff = diff
+                    max_diff_idx = (i, j)
+                if diff > 1e-4:
+                    print(f"Element [{i},{j}]: PyTorch={float(output_torch[i, j]):.6f}, NKI={float(output_nki[i, j]):.6f}, Diff={diff:.6f}")
+                    diff_count += 1
+                if diff_count >= 10:  # Limit to 10 differences
+                    print("...")
+                    break
+            if diff_count >= 10:
+                break
+        print(f"Maximum difference of {max_diff:.6f} at element {max_diff_idx}")
         return 0

@@ -4,28 +4,59 @@ Generate a custom kernel for threshold using AWS Neural Kernel Interface (NKI). 
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-Here is the NumPy kernel for the operation threshold:
+Threshold
 
-Here is a simple Python function that applies a threshold operation to a list of numbers. The function iterates over each number in the list and if the number is less than the threshold, it replaces the number with 0. If the number is greater than or equal to the threshold, it replaces the number with 1.
+CLASS torch.nn.Threshold(threshold, value, inplace=False)[SOURCE][SOURCE]
+Thresholds each element of the input Tensor.
 
-```python
-def threshold(lst, thresh):
-    """
-    This function applies a threshold operation to a list of numbers. 
-    For each number in the list, if the number is less than the threshold, 
-    it is replaced with 0. If the number is greater than or equal to the 
-    threshold, it is replaced with 1.
+Threshold is defined as:
 
-    Args:
-    lst: A list of numbers.
-    thresh: The threshold value.
+y
+=
+{
+x
+,
+ if 
+x
+>
+threshold
+value
+,
+ otherwise 
+ 
+y={ 
+x,
+value,
+​	
+  
+ if x>threshold
+ otherwise 
+​	
+ 
+Parameters
+threshold (float) – The value to threshold at
+value (float) – The value to replace with
+inplace (bool) – can optionally do the operation in-place. Default: False
+Shape:
+Input: 
+(
+∗
+)
+(∗), where 
+∗
+∗ means any number of dimensions.
+Output: 
+(
+∗
+)
+(∗), same shape as the input.
+Examples:
 
-    Returns:
-    A list with the threshold operation applied.
-    """
-    return [0 if i < thresh else 1 for i in lst]
-```
+>>> m = nn.Threshold(0.1, 20)
+>>> input = torch.randn(2)
+>>> output = m(input)
 
+The function should take in 3 inputs, vector, threshold, and replacement
 This function is vectorized because it operates on the entire list at once, rather than element by element. It does not use any built-in functions for calculations, nor does it use NumPy or any external libraries. The docstring provides a brief explanation of what the function does, its arguments, and its return value.
 
 Don't use libnrt.so.1

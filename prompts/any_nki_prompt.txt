@@ -29,6 +29,7 @@ This function works by iterating over each element in the iterable. If any eleme
 
 Don't use libnrt.so.1
 
+If the result is an output array:
 Make sure to return the output. Make sure to import nki: from neuronxcc import nki
 YOU DO NOT NEED TO PUT THE RETURN VARIABLE IN THE PARAMETERS. SIMPLY RETRUN RESULT AFTER STORING THE 
 ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "return result" AS THE LAST LINE OF THE KERNEL.

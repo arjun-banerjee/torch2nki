@@ -706,62 +706,120 @@ def generate_kernel_with_direct_docs_and_error_loop(
 if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
+
+    # elementwise_operators = [
+    #    "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
+    #    "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
+    #    "tanh", "sigmoid", "relu", "threshold"
+    # ]
     
-    # multi_element_operators = [
-    #     "softmax", "log_softmax", "max", "min", "sum", "mean", "var", "std", "norm",
-    #     "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
-    #     "where", "eq", "ne", "gt", "lt", "clamp", "sort", "topk", "kthvalue", "median",
-    #     "mode", "percentile", "logsumexp", "amax", "amin", "all", "any", "bincount",
-    #     "unique", "unique_consecutive"
+    multi_element_operators = [
+        "softmax", "log_softmax", "max", "min", "sum", "mean", "var", "std", "norm",
+        "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
+        "where", "eq", "ne", "gt", "lt", "clamp", "sort", "topk", "kthvalue", "median",
+        "mode", "percentile", "logsumexp", "amax", "amin", "all", "any", "bincount",
+        "unique", "unique_consecutive"
+    ]
+
+    multi_element_test_names = [
+        "test_torch_softmax",
+        "test_torch_log_softmax",
+        "test_torch_max",
+        "test_torch_min",
+        "test_torch_sum",
+        "test_torch_mean",
+        "test_torch_var",
+        "test_torch_std",
+        "test_torch_norm",
+        "test_torch_cumsum",
+        "test_torch_cumprod",
+        "test_torch_prod",
+        "test_torch_round",
+        "test_torch_floor",
+        "test_torch_ceil",
+        "test_torch_trunc",
+        "test_torch_sign",
+        "test_torch_where",
+        "test_torch_eq",
+        "test_torch_ne",
+        "test_torch_gt",
+        "test_torch_lt",
+        "test_torch_clamp",
+        "test_torch_sort",
+        "test_torch_topk",
+        "test_torch_kthvalue",
+        "test_torch_median",
+        "test_torch_mode",
+        "test_torch_percentile",
+        "test_torch_logsumexp",
+        "test_torch_amax",
+        "test_torch_amin",
+        "test_torch_all",
+        "test_torch_any",
+        "test_torch_bincount",
+        "test_torch_unique",
+        "test_torch_unique_consecutive"
+    ]
+    # product_test_names = [
+    #     "test_torch_inner",
+    #     "test_torch_outer",
+    #     "test_torch_dot",
+    #     "test_torch_vdot",
+    #     "test_torch_cross",
+    #     "test_torch_matmul",
+    #     "test_torch_mm",
+    #     "test_torch_mv",
+    #     "test_torch_bmm",
+    #     "test_torch_tensordot",
+    #     "test_torch_einsum",
+    #     "test_torch_kron", 
+    #     "test_torch_hadamard",
+    #     "test_torch_linalg_vecdot",
+    #     "test_torch_linalg_multi_dot"
+    # ]
+    # product_operators = [
+    #     "inner",
+    #     "outer",
+    #     "dot",
+    #     "vdot",
+    #     "cross",
+    #     "matmul",
+    #     "mm",
+    #     "mv",
+    #     "bmm",
+    #     "tensordot",
+    #     "einsum",
+    #     "kron", 
+    #     "hadamard",
+    #     "linalg_vecdot",
+    #     "linalg_multi_dot"
     # ]
 
-    # multi_element_test_names = [
-    #     "test_torch_softmax",
-    #     "test_torch_log_softmax",
-    #     "test_torch_max",
-    #     "test_torch_min",
-    #     "test_torch_sum",
-    #     "test_torch_mean",
-    #     "test_torch_var",
-    #     "test_torch_std",
-    #     "test_torch_norm",
-    #     "test_torch_cumsum",
-    #     "test_torch_cumprod",
-    #     "test_torch_prod",
-    #     "test_torch_round",
-    #     "test_torch_floor",
-    #     "test_torch_ceil",
-    #     "test_torch_trunc",
-    #     "test_torch_sign",
-    #     "test_torch_where",
-    #     "test_torch_eq",
-    #     "test_torch_ne",
-    #     "test_torch_gt",
-    #     "test_torch_lt",
-    #     "test_torch_clamp",
-    #     "test_torch_sort",
-    #     "test_torch_topk",
-    #     "test_torch_kthvalue",
-    #     "test_torch_median",
-    #     "test_torch_mode",
-    #     "test_torch_percentile",
-    #     "test_torch_logsumexp",
-    #     "test_torch_amax",
-    #     "test_torch_amin",
-    #     "test_torch_all",
-    #     "test_torch_any",
-    #     "test_torch_bincount",
-    #     "test_torch_unique",
-    #     "test_torch_unique_consecutive"
+    # product_test_names = [
+    #     "test_torch_tensordot",
+    #     "test_torch_einsum",
+    #     "test_torch_kron", 
+    #     "test_torch_linalg_vecdot",
+    #     "test_torch_linalg_multi_dot"
     # ]
+    # product_operators = [
+    #     "tensordot",
+    #     "einsum",
+    #     "kron",
+    #     "linalg_vecdot",
+    #     "linalg_multi_dot"
+    # ]
+
+    product_test_names = [
+        "test_torch_kron"
+    ]
+    product_operators = [
+        "kron"
+    ]
+
 
     # tests_passed_dict = {}
 
-    # elementwise_operators = [
-    #     "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
-    #     "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
-    #     "tanh", "sigmoid", "relu", "threshold"
-    # ]
     # elementwise_test_names = [
     #     "test_torch_addition",
     #     "test_torch_subtraction",
@@ -787,19 +845,19 @@ if __name__ == "__main__":
     #     "test_torch_threshold"
     # ]   
 
-    multi_element_operators = [
-        "softmax"
-    ]
+    # multi_element_operators = [
+    #     "mode"
+    # ]
 
-    multi_element_test_names = [
-        "test_torch_softmax",
-    ]
+    # multi_element_test_names = [
+    #     "test_torch_mode"   
+    # ]
 
     tests_passed_dict = {}
 
-    for i in range(len(multi_element_operators)):
-        operator = multi_element_operators[i]
-        test_name = multi_element_test_names[i]
+    for i in range(len(product_operators)):
+        operator = product_operators[i]
+        test_name = product_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
         user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
         output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"
@@ -815,24 +873,31 @@ if __name__ == "__main__":
 
         
         # Run the updated generator with direct documentation and error loop
-        result = generate_kernel_with_direct_docs_and_error_loop(
-            kernel_func_name,
-            system_prompt_path,
-            user_prompt_path,
-            output_address,
-            kernel_module_path,
-            test_name,
-            test_script_output,
-            reasoning_log_path,
-            error_doc_path,
-            docs_dir,
-            max_iterations=10
-        )
-        if result:
-            print(result)
-            tests_passed_dict[operator] = True
-        else:
-            tests_passed_dict[operator] = False
+        result = False
+        ctr = 0
+
+        while ctr < 2:
+            result = generate_kernel_with_direct_docs_and_error_loop(
+                kernel_func_name,
+                system_prompt_path,
+                user_prompt_path,
+                output_address,
+                kernel_module_path,
+                test_name,
+                test_script_output,
+                reasoning_log_path,
+                error_doc_path,
+                docs_dir,
+                max_iterations=10
+            )
+            if result:
+                print(result)
+                tests_passed_dict[operator] = True
+                break
+            else:
+                tests_passed_dict[operator] = False
+
+            ctr += 1
 
     # Save test_passed_dict to a file, and make the file if it doesn't exist
     with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:

@@ -1,31 +1,34 @@
 
-Generate a custom kernel for lt using AWS Neural Kernel Interface (NKI). The kernel should:
-- Use the proper NKI API integration.
-- Follow best practices for compilation.
-- Be well-structured, modular, and maintainable.
-
-Here is the NumPy kernel for the operation lt:
-
-Here is a Python function that performs the 'lt' (less than) operation in a vectorized manner:
+Here's a Python function that performs the 'lt' (less than) operation. This function takes two lists of numbers as input and returns a list of boolean values that indicate whether the corresponding elements in the first list are less than those in the second list. 
 
 ```python
-def vectorized_lt(a, b):
+def lt(list1, list2):
     """
-    This function performs the 'lt' operation in a vectorized manner.
-    
+    This function takes two lists of numbers as input and returns a list of boolean values. 
+    Each boolean value indicates whether the corresponding element in the first list is less than the one in the second list.
+
     Args:
-    a: list of integers or floats
-    b: single integer or float
-    
+    list1 : List of numbers
+    list2 : List of numbers
+
     Returns:
-    A list of boolean values. Each value is True if the corresponding value in 'a' is less than 'b', otherwise False.
+    result : List of boolean values
     """
-    return [x < b for x in a]
+    
+    # Initialize an empty list to store the results
+    result = []
+    
+    # Iterate over the elements in the input lists
+    for i in range(len(list1)):
+        
+        # Compare the corresponding elements in the two lists and append the result to the result list
+        result.append(list1[i] < list2[i])
+        
+    # Return the result list
+    return result
 ```
 
-This function takes a list of numbers (`a`) and another number (`b`) as input. It returns a list of boolean values. Each value in the output list is `True` if the corresponding value in `a` is less than `b`, otherwise it is `False`.
-
-This function is vectorized because it applies the 'lt' operation to each element in the list `a` in a single line of code, using list comprehension. This is a form of implicit looping, which is generally faster than explicit looping in Python.
+Please note that this function assumes that the input lists are of the same length and contain only numbers. If the input lists are of different lengths or contain non-numeric values, the function may not work as expected.
 
 This function does not use any built-in functions for calculations, nor does it use NumPy or any external libraries. It only uses the built-in '<' operator and list comprehension, which are both part of the core Python language.
 

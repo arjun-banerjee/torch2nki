@@ -1,0 +1,26 @@
+*** I see that the outputs differ due to the usage of the `nl.exp()` command on a tensor in HBM. To fix this, I will first load the tensor into on-chip memory (SBUF) before applying the exponential function. Additionally, I will ensure the correct computation of sinh by properly structuring the operations to adhere to the NKI guidelines. This includes using intermediary variables for the exponential calculations and ensuring I return the result as specified. ***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sinh(a_tensor):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+    # Load input tensor into SBUF
+    input_tile = nl.load(a_tensor)
+
+    # Compute exp(x) and exp(-x) in SBUF
+    exp_a = nl.exp(input_tile)
+    exp_neg_a = nl.exp(nl.multiply(input_tile, -1))
+
+    # Calculate sinh using the formula (e^x - e^-x) / 2
+    sinh_value = nl.divide(nl.subtract(exp_a, exp_neg_a), 2)
+
+    # Store result back to HBM
+    nl.store(result, sinh_value)
+
+    return result
+```

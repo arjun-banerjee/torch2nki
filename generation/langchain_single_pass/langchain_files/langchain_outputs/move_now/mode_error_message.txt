@@ -1,0 +1,20 @@
+Running NKI kernel simulation for mode...
+Error running test: Unsupported dtype 'int64' of operand 'src' in 'load', expected one of the following dtypes: 'tfloat32', 'bfloat16', 'float8_e4m3', 'float8_e4m3', 'float8_e5m2', 'float32', 'float16', 'int32', 'uint32', 'int16', 'uint16', 'int8', 'uint8', 'bool', 'bool'.
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/test_sim.py", line 1556, in test_torch_mode
+    output_nki = nki.simulate_kernel(nki_vector_mode, np.array(input_tensor))
+  File "neuronxcc/nki/compile.py", line 37, in neuronxcc.nki.compile.simulate_kernel
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 274, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 275, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.Kernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 361, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.call_impl
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/mode_nki_kernel.py", line 14, in nki_mode
+    curr_val = nl.load(a_tensor[i])
+TypeError: Unsupported dtype 'int64' of operand 'src' in 'load', expected one of the following dtypes: 'tfloat32', 'bfloat16', 'float8_e4m3', 'float8_e4m3', 'float8_e5m2', 'float32', 'float16', 'int32', 'uint32', 'int16', 'uint16', 'int8', 'uint8', 'bool', 'bool'.

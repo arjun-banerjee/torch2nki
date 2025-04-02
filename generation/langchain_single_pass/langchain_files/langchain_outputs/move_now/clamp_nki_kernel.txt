@@ -1,0 +1,45 @@
+Based on the requirements and documentation provided, I'll create a NKI kernel for the clamp operation. The clamp operation should constrain values between a minimum and maximum value. Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_clamp(a_tensor, min_value, max_value):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensor into on-chip memory
+    input_tile = nl.load(a_tensor)
+    
+    # First get the maximum between input and min_value
+    temp = nl.maximum(input_tile, min_value)
+    
+    # Then get the minimum between that result and max_value
+    output_tile = nl.minimum(temp, max_value)
+    
+    # Store result back to HBM
+    nl.store(result, output_tile)
+    
+    return result
+```
+
+This implementation:
+
+1. Takes three parameters: the input tensor and the min/max values to clamp between
+2. Initializes a result array in shared HBM with the same shape and dtype as the input
+3. Uses nl.load to load the input tensor into on-chip memory
+4. Applies nl.maximum to get values >= min_value 
+5. Applies nl.minimum to get values <= max_value
+6. Stores the result back to HBM using nl.store
+7. Returns the result array
+
+The implementation uses the built-in nl.maximum and nl.minimum functions which are optimized for the hardware. This is more efficient than implementing the comparisons manually.
+
+Key points:
+- Uses proper NKI memory management with HBM and on-chip buffers
+- Takes advantage of native nl.maximum/minimum operations
+- Maintains proper data types through the operations
+- Follows the initialization and return pattern specified
+
+The kernel will efficiently clamp all values in the input tensor between min_value and max_value in a vectorized way.

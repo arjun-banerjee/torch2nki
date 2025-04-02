@@ -1,0 +1,22 @@
+***I see that the outputs differ because the previous implementation attempts to use the `nl.sin` function directly on a tensor allocated in HBM, which is not supported as the sine function requires input from SBUF or PSUM. I will modify the kernel to first load the input tensor into SBUF, then apply the sine function, and finally store the results back into the result variable initialized in HBM. The usage of NKI functions will ensure that the operation is efficient and adheres to best practices.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sin(a_tensor):
+    # Initialize result array in shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+    # Load input tensor from HBM to SBUF
+    input_tile = nl.load(a_tensor)
+
+    # Compute sine using the NKI provided function
+    sin_output = nl.sin(input_tile)
+
+    # Store result back to HBM
+    nl.store(result, sin_output)
+
+    return result
+```

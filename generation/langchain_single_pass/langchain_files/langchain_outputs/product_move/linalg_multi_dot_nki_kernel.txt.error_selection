@@ -1,0 +1,15 @@
+ERROR MESSAGE:
+Error running test: module 'test_sim' has no attribute 'test_torch_linalg_multi_dot'
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 152, in run
+    test_func = getattr(self.tests, test_func_name)
+AttributeError: module 'test_sim' has no attribute 'test_torch_linalg_multi_dot'
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

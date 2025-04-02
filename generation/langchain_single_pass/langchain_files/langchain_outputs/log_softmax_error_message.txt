@@ -1,8 +1,0 @@
-Running NKI kernel simulation for log_softmax...
-
---- Results Comparison ---
-NKI output (first 5): [0. 0. 0. 0. 0.]
-PyTorch output (first 5): [-4.4625773 -4.6625524 -4.601117  -4.930435  -4.786692 ]
-
-❌ ERROR: NKI and PyTorch outputs differ!
-

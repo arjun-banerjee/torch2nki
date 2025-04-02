@@ -1,0 +1,30 @@
+ERROR MESSAGE:
+Running NKI kernel simulation...
+
+--- Results Comparison ---
+NKI output (first 5x5): [[0.24279785 0.21711731 0.29649353 0.04443359 0.03973389]
+ [0.0887146  0.4389038  0.12606812 0.01623535 0.08032227]
+ [0.14474487 0.05603027 0.29182434 0.02648926 0.01025391]
+ [0.15551758 0.1390686  0.18991089 0.0333252  0.02980042]
+ [0.05682373 0.28112793 0.08074951 0.01217651 0.0602417 ]]
+PyTorch output (first 5x5): [[0.24316406 0.21679688 0.296875   0.04443359 0.03979492]
+ [0.08886719 0.43945312 0.12597656 0.01623535 0.08007812]
+ [0.14453125 0.05615234 0.29101562 0.02648926 0.01025391]
+ [0.15527344 0.13867188 0.18945312 0.03320312 0.02978516]
+ [0.05688477 0.28125    0.08056641 0.01220703 0.06030273]]
+Error running test: BFloat16 did not match Float
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/test_sim.py", line 2397, in test_torch_kron
+    if torch.allclose(output_torch, torch.tensor(output_nki), atol=1e-4, rtol=1e-2):
+RuntimeError: BFloat16 did not match Float
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

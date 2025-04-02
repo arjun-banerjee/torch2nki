@@ -1,0 +1,34 @@
+***I see that the outputs differ. I will implement tensordot for 3D inputs by properly handling the dimensions using nl.load to load input tensors into SBUF, then use nl.matmul with transpose_x=True for optimal performance, and ensure proper memory space transitions between HBM and SBUF.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_tensordot(a_tensor, b_tensor):
+    # Initialize result tensor
+    result = nl.ndarray((a_tensor.shape[0], b_tensor.shape[-1]), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate intermediate dimensions
+    batch_size = 128  # Maximum tile size
+    m = a_tensor.shape[0]
+    n = b_tensor.shape[-1]
+    k = a_tensor.shape[1] * a_tensor.shape[2]
+    
+    # Process in tiles
+    for i_m in nl.affine_range((m + batch_size - 1) // batch_size):
+        m_start = i_m * batch_size
+        m_end = min(m_start + batch_size, m)
+        
+        # Load and process current batch
+        a_tile = nl.load(a_tensor[m_start:m_end])
+        b_tile = nl.load(b_tensor)
+        
+        # Perform matrix multiplication
+        output_tile = nl.matmul(a_tile, b_tile, transpose_x=True)
+        
+        # Store result
+        nl.store(result[m_start:m_end], output_tile)
+    
+    return result
+```

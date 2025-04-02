@@ -3,9 +3,24 @@ When possible, use nl functions instead of implementing them manually. For insta
 
 
 MUST READ:
+if the result is an array, use this below
 result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
 this is how you should be initializing the result array at the start
 Remember to use this to initialize your result
+
+Otherwise if the result should not be an array, you can simply return a singular scalar value
+However I repeat if you are returning an array, you  must initialize the array  as
+result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+MUST READ:
+To do axis multi-element operations, you must always call axis = 1 on the nl operators. Therefore, you must first transpose your input x, then apply the operator, then transpose it back.
+Here is an example for softmax:
+```python
+    # Compute log_softmax by applying softmax first, then taking log
+    softmax_output = nl.softmax(nl.transpose(input_tile), axis=1)
+    
+    # Store result back to HBM
+    nl.store(result, nl.transpose(softmax_output))
 
 
 

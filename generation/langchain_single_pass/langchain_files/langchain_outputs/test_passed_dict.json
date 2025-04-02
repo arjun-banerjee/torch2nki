@@ -1,1 +1,1 @@
-{"softmax": false}
+{"tensordot": false, "einsum": false, "kron": false, "linalg_vecdot": false, "linalg_multi_dot": false}

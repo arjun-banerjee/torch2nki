@@ -1,0 +1,30 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_kron(a_tensor, b_tensor):
+    # Get input dimensions
+    m, n = a_tensor.shape
+    p, q = b_tensor.shape
+    
+    # Initialize result array with proper shape
+    result = nl.ndarray((m*p, n*q), dtype=nl.float32, buffer=nl.shared_hbm)
+    
+    # Process blocks
+    for i in nl.affine_range(m):
+        for j in nl.affine_range(n):
+            # Load scalar from a_tensor
+            a_val = nl.load(a_tensor[i,j])
+            
+            # Load b_tensor block
+            b_block = nl.load(b_tensor)
+            
+            # Multiply a_val with b_block
+            block_result = nl.multiply(a_val, b_block)
+            
+            # Store result in appropriate position
+            start_row = i * p
+            start_col = j * q
+            nl.store(result[start_row:start_row+p, start_col:start_col+q], block_result)
+    
+    return result

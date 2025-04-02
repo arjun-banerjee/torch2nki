@@ -1,0 +1,22 @@
+***I see that the outputs differ because I mistakenly attempted to apply the sigmoid function directly to a transposed tensor while it was still in HBM, which is not allowed. To resolve this, I will first load the tensor into on-chip memory (SBUF), then apply the sigmoid function, and finally store the result back to HBM. This sequence correctly adheres to the memory access requirements and optimizes performance.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sigmoid(a_tensor):
+    # Initialize the result tensor
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load the input tensor into SBUF
+    input_tile = nl.load(a_tensor)
+    
+    # Apply sigmoid function
+    dummy_variable = nl.sigmoid(input_tile)
+    
+    # Store result back to HBM
+    nl.store(result, dummy_variable)
+
+    return result
+```
