@@ -708,11 +708,11 @@ if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
 
-    # elementwise_operators = [
-    #    "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
-    #    "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
-    #    "tanh", "sigmoid", "relu", "threshold"
-    # ]
+    elementwise_operators = [
+       "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
+       "pow", "sin", "cos", "tan", "atan", "sinh", "cosh",
+       "tanh", "sigmoid", "relu", "threshold" # TODO: add asin + acos in the future
+    ]
     
     multi_element_operators = [
         "softmax", "log_softmax", "max", "min", "sum", "mean", "var", "std", "norm",
@@ -821,30 +821,28 @@ if __name__ == "__main__":
 
     # tests_passed_dict = {}
 
-    # elementwise_test_names = [
-    #     "test_torch_addition",
-    #     "test_torch_subtraction",
-    #     "test_torch_multiplication",
-    #     "test_torch_division",
-    #     "test_torch_absolute",
-    #     "test_torch_exponential",
-    #     "test_torch_log",
-    #     "test_torch_sqrt",
-    #     "test_torch_rsqrt",
-    #     "test_torch_power",
-    #     "test_torch_sine",
-    #     "test_torch_cosine",
-    #     "test_torch_tangent",
-    #     "test_torch_arcsine",
-    #     "test_torch_arccosine",
-    #     "test_torch_arctangent",
-    #     "test_torch_hyperbolic_sine",
-    #     "test_torch_hyperbolic_cosine",
-    #     "test_torch_hyperbolic_tangent",
-    #     "test_torch_sigmoid",
-    #     "test_torch_relu",
-    #     "test_torch_threshold"
-    # ]   
+    elementwise_test_names = [
+        "test_torch_addition",
+        "test_torch_subtraction",
+        "test_torch_multiplication",
+        "test_torch_division",
+        "test_torch_absolute",
+        "test_torch_exponential",
+        "test_torch_log",
+        "test_torch_sqrt",
+        "test_torch_rsqrt",
+        "test_torch_power",
+        "test_torch_sine",
+        "test_torch_cosine",
+        "test_torch_tangent",
+        "test_torch_arcsine",
+        "test_torch_hyperbolic_sine",
+        "test_torch_hyperbolic_cosine",
+        "test_torch_hyperbolic_tangent",
+        "test_torch_sigmoid",
+        "test_torch_relu",
+        "test_torch_threshold"
+    ]   
 
     # multi_element_operators = [
     #     "mode"
@@ -856,9 +854,9 @@ if __name__ == "__main__":
 
     tests_passed_dict = {}
 
-    for i in range(len(product_operators)):
-        operator = product_operators[i]
-        test_name = product_test_names[i]
+    for i in range(len(elementwise_operators)):
+        operator = elementwise_operators[i]
+        test_name = elementwise_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
         user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
         output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"
