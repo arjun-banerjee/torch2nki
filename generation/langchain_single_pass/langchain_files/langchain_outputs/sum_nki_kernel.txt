@@ -1,0 +1,25 @@
+***Since the input tensor is in HBM and we want to sum all elements, we'll first load it into SBUF, then use nl.sum() with axis=1 to sum along each row, and finally use another nl.sum() to get the total sum across columns, storing this scalar result back to HBM***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_sum(a_tensor):
+    # Initialize scalar result array in HBM
+    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load data into SBUF and transpose for axis 1 reduction
+    input_sbuf = nl.load(a_tensor)
+    transposed = nl.transpose(input_sbuf)
+    
+    # First sum reduces along rows
+    row_sums = nl.sum(transposed, axis=1)
+    # Second sum reduces the row sums to final scalar
+    final_sum = nl.sum(row_sums, axis=1)
+    
+    # Store scalar result
+    nl.store(result, final_sum)
+    
+    return result
+```

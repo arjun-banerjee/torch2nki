@@ -1,16 +1,6 @@
-Running NKI kernel simulation...
-
---- Results Comparison ---
-NKI output (first a: 5x5): [[29.74707  32.412064 31.351486 29.826538 28.873978]
- [30.82283  33.29666  33.121994 30.48375  31.501678]
- [30.999802 31.980484 30.94374  30.956818 30.030273]
- [30.200317 31.007492 28.996094 27.826706 29.550064]
- [31.64154  32.890396 31.617111 28.823746 30.15483 ]]
-Error running test: Got unsupported ScalarType BFloat16
+Error running test: test_torch_einsum() takes 1 positional argument but 2 were given
 
 Traceback (most recent call last):
   File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
     test_func(self.device, kernel_func)
-  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/test_sim.py", line 2337, in test_torch_einsum
-    print("PyTorch output (first 5x5):", output_torch[:5, :5].numpy())
-TypeError: Got unsupported ScalarType BFloat16
+TypeError: test_torch_einsum() takes 1 positional argument but 2 were given

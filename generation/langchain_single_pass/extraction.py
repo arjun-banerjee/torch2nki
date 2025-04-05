@@ -95,8 +95,8 @@ class ExecutionServer:
             device: The device to run tests on (default: 'cpu')
         """
         self.device = device
-        import test_sim
-        self.tests = test_sim
+        import tests
+        self.tests = tests
     
     @staticmethod
     def load_kernel_module(kernel_path):

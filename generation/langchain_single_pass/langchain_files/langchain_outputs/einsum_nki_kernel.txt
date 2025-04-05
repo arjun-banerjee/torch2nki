@@ -1,27 +1,48 @@
-***I will implement einsum for matrix multiplication by loading tensors into SBUF memory first using float32 dtype, performing matmul, and storing result directly to HBM, ensuring proper memory space handling for all operations***
+***I will implement a general einsum kernel that handles matrix multiplication, outer products, and tensor contractions by parsing the equation string, using nl.matmul for matrix operations and nl.multiply for element-wise operations, with proper initialization of result arrays using nl.ndarray***
 
 ```python
 from neuronxcc import nki
 import neuronxcc.nki.language as nl
 
 @nki.jit
-def nki_einsum(equation, x, y):
-    # Get shapes from input tensors
-    M, K = x.shape
-    K2, N = y.shape
+def nki_einsum(equation, a_tensor, b_tensor):
+    # Parse equation string
+    eq_parts = equation.split("->")
+    input_subscripts = eq_parts[0].split(",")
+    output_subscript = eq_parts[1] if len(eq_parts) > 1 else ""
     
-    # Initialize result array for matrix multiplication output in HBM
-    result = nl.ndarray((M, N), dtype=nl.float32, buffer=nl.shared_hbm)
-    
-    # Load inputs into SBUF memory with explicit float32 dtype
-    x_data = nl.load(x, dtype=nl.float32)
-    y_data = nl.load(y, dtype=nl.float32)
-    
-    # Compute matrix multiplication
-    output = nl.matmul(x_data, y_data)
-    
-    # Store result back to HBM
-    nl.store(result, output)
-    
+    # Matrix multiplication case "ij,jk->ik"
+    if (len(input_subscripts[0]) == 2 and 
+        len(input_subscripts[1]) == 2 and 
+        input_subscripts[0][1] == input_subscripts[1][0]):
+        result = nl.ndarray((a_tensor.shape[0], b_tensor.shape[1]), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        temp = nl.matmul(nl.transpose(a_tensor), b_tensor)
+        nl.store(result, temp)
+        
+    # Outer product case "i,j->ij"
+    elif (len(input_subscripts[0]) == 1 and 
+          len(input_subscripts[1]) == 1):
+        result = nl.ndarray((a_tensor.shape[0], b_tensor.shape[0]), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        a_expanded = nl.reshape(a_tensor, (a_tensor.shape[0], 1))
+        b_expanded = nl.reshape(b_tensor, (1, b_tensor.shape[0]))
+        temp = nl.multiply(a_expanded, b_expanded)
+        nl.store(result, temp)
+        
+    # Element-wise multiplication case "ij,ij->ij"
+    elif (input_subscripts[0] == input_subscripts[1]):
+        result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        temp = nl.multiply(a_tensor, b_tensor)
+        nl.store(result, temp)
+        
+    # Dot product case "i,i->"
+    elif (len(input_subscripts[0]) == 1 and 
+          input_subscripts[0] == input_subscripts[1] and 
+          not output_subscript):
+        temp = nl.multiply(a_tensor, b_tensor)
+        result = nl.sum(temp, axis=0)
+        
+    else:
+        raise ValueError("Unsupported einsum operation")
+        
     return result
 ```

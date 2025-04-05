@@ -22,9 +22,10 @@ def test_torch_addition(device, nki_vector_add):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
+
     # Test the small workload with basic kernel
-    lhs_small = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
-    rhs_small = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
+    lhs_small = torch.rand((7568, 128), dtype=torch.bfloat16, device=device)
+    rhs_small = torch.rand((7568, 128), dtype=torch.bfloat16, device=device)
 
     # Run NKI kernel
     output_small = nki_vector_add(lhs_small, rhs_small)

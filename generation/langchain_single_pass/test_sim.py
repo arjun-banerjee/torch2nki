@@ -2315,8 +2315,8 @@ def test_torch_einsum(device, nki_einsum):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     np.random.seed(0)
-    a = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
-    b = torch.rand((128, 32), dtype=torch.bfloat16, device=device)
+    a = torch.rand((64, 128), dtype=torch.float32, device=device)
+    b = torch.rand((128, 32), dtype=torch.float32, device=device)
     equation = "ij,jk->ik"
     
     print("Running NKI kernel simulation...")

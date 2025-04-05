@@ -14,6 +14,7 @@ import datetime
 import json
 from langchain.memory import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
+from torch_xla.core import xla_model as xm
 
 
 from rate_limit_handler import retry_with_backoff, invoke_chain_with_retry
@@ -556,7 +557,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
             
             # Now run the test using the execution server
             from extraction import run
-            error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output)
+            error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output, xm.xla_device())
 
             # Add test results to iteration history
             previous_iteration_info.append(f"Test result: {error_message[:500]}...")
@@ -811,10 +812,10 @@ if __name__ == "__main__":
     # ]
 
     product_test_names = [
-        "test_torch_kron"
+        "test_torch_addition"
     ]
     product_operators = [
-        "kron"
+        "add"
     ]
 
 
@@ -876,7 +877,7 @@ if __name__ == "__main__":
         result = False
         ctr = 0
 
-        while ctr < 2:
+        while ctr < 5:
             result = generate_kernel_with_direct_docs_and_error_loop(
                 kernel_func_name,
                 system_prompt_path,

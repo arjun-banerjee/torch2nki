@@ -1,4 +1,4 @@
-[2025-04-05 00:49:26] FULL ERROR PROMPT TO LLM:
+[2025-04-05 02:43:55] FULL ERROR PROMPT TO LLM:
 Human: You are a engineer at Annapurna Labs writing efficent and correct kernels.
 When possible, use nl functions instead of implementing them manually. For instance, nl.softmax
 
@@ -47,133 +47,32 @@ You will follow the user's specifications for:
 - Format and structure preferences
 
 Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, tryingto keep it as brief as possible. Focus on explaining the exact change you will be making to the code.I dont want the actual code, but be specific so someone that sees the same error message on a different line of codecan implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sureyou are not trying to do the same fixes multiple times. When you are changing the code, try to only change the line with the error message and maybe code that relates.However, if the error you are facing is that the outputs differ, then you are allowed to change multiple lines.When the outputs differ, most likely the logic is wrong. I want you to notice this and in your reasoning state that the logic is likely wrong and state which logic you will update. Please clearly state in your reasoning ***i see that the outputs differ***Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. Then, immediatly after write the python nki code inside triple backticks ``` ```.I repeat, I only want your output to first be the line of reasoning inside triple stars, then the nki kernel code inside triple backticks. Do NOT put the reasoning inside the nki kernel code.Everything above this line is the most important information. Please make sure you follow these guidelines.Task: 
-Generate a custom kernel for einsum using AWS Neural Kernel Interface (NKI). The kernel should:
+Generate a custom kernel for add using AWS Neural Kernel Interface (NKI). The kernel should:
 - Use the proper NKI API integration.
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
-THE EINSUM KERNEL SHOULD TAKE 3 INPUTS, THE EQUATION, AND 2 Vectors
-I REPEAT, USE ALL 3 INPUTS FOR THE KERNEL
+Here is the NumPy kernel for the operation add:
 
-MAKE SURE U MAKE IT A GENERAL EINSUM FUNCTION, NOT JUST ONE THAT CAN ONLY DO MATRIX multiplication
-I REPEAT, MAKE SURE IT PARSES THE EQUATION AND NOT JUST USE THE MATRIX MULTIPLICATIONS
-
-Here is the NumPy kernel for the operation einsum:
-
-The 'einsum' operation is a powerful function that allows you to perform various operations on arrays of different dimensions. It is based on the Einstein summation convention and it's commonly used in scientific computing. However, it's a quite complex function and it's not feasible to implement it without using built-in functions for calculations or without using NumPy or any other external libraries in Python.
-
-In Python, it's almost impossible to perform such complex operations without using built-in functions or libraries, especially for a function like 'einsum' that involves a lot of matrix operations. Python itself does not support vectorized operations natively, so it would be very inefficient and impractical to try to implement this function from scratch without using any libraries.
-
-torch.einsum
-
-torch.einsum(equation, *operands) → Tensor[SOURCE][SOURCE]
-Sums the product of the elements of the input operands along dimensions specified using a notation based on the Einstein summation convention.
-
-Einsum allows computing many common multi-dimensional linear algebraic array operations by representing them in a short-hand format based on the Einstein summation convention, given by equation. The details of this format are described below, but the general idea is to label every dimension of the input operands with some subscript and define which subscripts are part of the output. The output is then computed by summing the product of the elements of the operands along the dimensions whose subscripts are not part of the output. For example, matrix multiplication can be computed using einsum as torch.einsum(“ij,jk->ik”, A, B). Here, j is the summation subscript and i and k the output subscripts (see section below for more details on why).
-
-Equation:
-
-The equation string specifies the subscripts (letters in [a-zA-Z]) for each dimension of the input operands in the same order as the dimensions, separating subscripts for each operand by a comma (‘,’), e.g. ‘ij,jk’ specify subscripts for two 2D operands. The dimensions labeled with the same subscript must be broadcastable, that is, their size must either match or be 1. The exception is if a subscript is repeated for the same input operand, in which case the dimensions labeled with this subscript for this operand must match in size and the operand will be replaced by its diagonal along these dimensions. The subscripts that appear exactly once in the equation will be part of the output, sorted in increasing alphabetical order. The output is computed by multiplying the input operands element-wise, with their dimensions aligned based on the subscripts, and then summing out the dimensions whose subscripts are not part of the output.
-
-Optionally, the output subscripts can be explicitly defined by adding an arrow (‘->’) at the end of the equation followed by the subscripts for the output. For instance, the following equation computes the transpose of a matrix multiplication: ‘ij,jk->ki’. The output subscripts must appear at least once for some input operand and at most once for the output.
-
-Ellipsis (‘…’) can be used in place of subscripts to broadcast the dimensions covered by the ellipsis. Each input operand may contain at most one ellipsis which will cover the dimensions not covered by subscripts, e.g. for an input operand with 5 dimensions, the ellipsis in the equation ‘ab…c’ cover the third and fourth dimensions. The ellipsis does not need to cover the same number of dimensions across the operands but the ‘shape’ of the ellipsis (the size of the dimensions covered by them) must broadcast together. If the output is not explicitly defined with the arrow (‘->’) notation, the ellipsis will come first in the output (left-most dimensions), before the subscript labels that appear exactly once for the input operands. e.g. the following equation implements batch matrix multiplication ‘…ij,…jk’.
-
-A few final notes: the equation may contain whitespaces between the different elements (subscripts, ellipsis, arrow and comma) but something like ‘…’ is not valid. An empty string ‘’ is valid for scalar operands.
-
-NOTE
-
-torch.einsum handles ellipsis (‘…’) differently from NumPy in that it allows dimensions covered by the ellipsis to be summed over, that is, ellipsis are not required to be part of the output.
-NOTE
-
-Please install opt-einsum (https://optimized-einsum.readthedocs.io/en/stable/) in order to enroll into a more performant einsum. You can install when installing torch like so: pip install torch[opt-einsum] or by itself with pip install opt-einsum.
-
-If opt-einsum is available, this function will automatically speed up computation and/or consume less memory by optimizing contraction order through our opt_einsum backend torch.backends.opt_einsum (The _ vs - is confusing, I know). This optimization occurs when there are at least three inputs, since the order does not matter otherwise. Note that finding the optimal path is an NP-hard problem, thus, opt-einsum relies on different heuristics to achieve near-optimal results. If opt-einsum is not available, the default order is to contract from left to right.
-
-To bypass this default behavior, add the following to disable opt_einsum and skip path calculation: torch.backends.opt_einsum.enabled = False
-
-To specify which strategy you’d like for opt_einsum to compute the contraction path, add the following line: torch.backends.opt_einsum.strategy = 'auto'. The default strategy is ‘auto’, and we also support ‘greedy’ and ‘optimal’. Disclaimer that the runtime of ‘optimal’ is factorial in the number of inputs! See more details in the opt_einsum documentation (https://optimized-einsum.readthedocs.io/en/stable/path_finding.html).
-NOTE
-
-As of PyTorch 1.10 torch.einsum() also supports the sublist format (see examples below). In this format, subscripts for each operand are specified by sublists, list of integers in the range [0, 52). These sublists follow their operands, and an extra sublist can appear at the end of the input to specify the output’s subscripts., e.g. torch.einsum(op1, sublist1, op2, sublist2, …, [subslist_out]). Python’s Ellipsis object may be provided in a sublist to enable broadcasting as described in the Equation section above.
-Parameters
-equation (str) – The subscripts for the Einstein summation.
-operands (List[Tensor]) – The tensors to compute the Einstein summation of.
-Return type
-Tensor
-
-Examples:
-
->>> # trace
->>> torch.einsum('ii', torch.randn(4, 4))
-tensor(-1.2104)
-
->>> # diagonal
->>> torch.einsum('ii->i', torch.randn(4, 4))
-tensor([-0.1034,  0.7952, -0.2433,  0.4545])
-
->>> # outer product
->>> x = torch.randn(5)
->>> y = torch.randn(4)
->>> torch.einsum('i,j->ij', x, y)
-tensor([[ 0.1156, -0.2897, -0.3918,  0.4963],
-        [-0.3744,  0.9381,  1.2685, -1.6070],
-        [ 0.7208, -1.8058, -2.4419,  3.0936],
-        [ 0.1713, -0.4291, -0.5802,  0.7350],
-        [ 0.5704, -1.4290, -1.9323,  2.4480]])
-
->>> # batch matrix multiplication
->>> As = torch.randn(3, 2, 5)
->>> Bs = torch.randn(3, 5, 4)
->>> torch.einsum('bij,bjk->bik', As, Bs)
-tensor([[[-1.0564, -1.5904,  3.2023,  3.1271],
-        [-1.6706, -0.8097, -0.8025, -2.1183]],
-
-        [[ 4.2239,  0.3107, -0.5756, -0.2354],
-        [-1.4558, -0.3460,  1.5087, -0.8530]],
-
-        [[ 2.8153,  1.8787, -4.3839, -1.2112],
-        [ 0.3728, -2.1131,  0.0921,  0.8305]]])
-
->>> # with sublist format and ellipsis
->>> torch.einsum(As, [..., 0, 1], Bs, [..., 1, 2], [..., 0, 2])
-tensor([[[-1.0564, -1.5904,  3.2023,  3.1271],
-        [-1.6706, -0.8097, -0.8025, -2.1183]],
-
-        [[ 4.2239,  0.3107, -0.5756, -0.2354],
-        [-1.4558, -0.3460,  1.5087, -0.8530]],
-
-        [[ 2.8153,  1.8787, -4.3839, -1.2112],
-        [ 0.3728, -2.1131,  0.0921,  0.8305]]])
-
->>> # batch permute
->>> A = torch.randn(2, 3, 4, 5)
->>> torch.einsum('...ij->...ji', A).shape
-torch.Size([2, 3, 5, 4])
-
->>> # equivalent to torch.nn.functional.bilinear
->>> A = torch.randn(3, 5, 4)
->>> l = torch.randn(2, 5)
->>> r = torch.randn(2, 4)
->>> torch.einsum('bn,anm,bm->ba', l, A, r)
-tensor([[-0.3430, -5.2405,  0.4494],
-        [ 0.3311,  5.5201, -3.0356]])
-
-        
-Therefore, it is highly recommended to use NumPy or similar libraries when you need to perform operations like 'einsum'. Here is how you can use 'einsum' with NumPy:
+Here's a Python function for the operation 'add' that meets your requirements:
 
 ```python
-import numpy as np
+def vectorized_add(a, b):
+    """
+    This function takes two lists of equal length as input and returns a new list
+    where each element is the sum of the corresponding elements in the input lists.
 
-# Define two arrays
-a = np.array([1, 2, 3])
-b = np.array([4, 5, 6])
+    Parameters:
+    a (List[int]): First list of integers
+    b (List[int]): Second list of integers
 
-# Use 'einsum' to calculate the dot product
-dot_product = np.einsum('i,i->', a, b)
+    Returns:
+    List[int]: New list with summed elements
+    """
+    return [a[i] + b[i] for i in range(len(a))]
 ```
 
-This will calculate the dot product of 'a' and 'b' by multiplying each element of 'a' with the corresponding element of 'b' and summing the results. The 'i,i->' string is the 'einsum' subscript notation that describes this operation.
+This function uses list comprehension to add the elements in the two input lists. Note that this function assumes that the input lists are of equal length. If they are not, you will get an `IndexError`.
 
 Don't use libnrt.so.1
 
@@ -183,7 +82,7 @@ ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "retu
 YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
 DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
 
-Here is an example for the dot product vector. The code for the vector einsum does not have to relate
+Here is an example for the dot product vector. The code for the vector add does not have to relate
 at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
 to nki kernels work. for example, we should always be returning a result especially.
 Specifically, you do not need to use for i in range for this implementation. use the implementation 
@@ -400,17 +299,94 @@ Note: The Vector Engine internally performs most of the computation in FP32 (see
 
 Previous error message:
 --------------------------------------------------
-Error running test: test_torch_einsum() takes 1 positional argument but 2 were given
+Error running test: number of partitions in src[7568, 128] of 'load' exceed architecture limitation of 128.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-num-partition-exceed-arch-limit
 
 Traceback (most recent call last):
   File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
     test_func(self.device, kernel_func)
-TypeError: test_torch_einsum() takes 1 positional argument but 2 were given
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 31, in test_torch_addition
+    output_small = nki_vector_add(lhs_small, rhs_small)
+  File "neuronxcc/nki/compile.py", line 94, in neuronxcc.nki.compile.GenericKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 103, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 105, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/FrameworkKernel.py", line 287, in neuronxcc.nki.compiler.backends.neuron.FrameworkKernel.FrameworkKernel.dump_config_with_boundargs
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/add_nki_kernel.py", line 20, in nki_add
+    a_tile = nl.load(a_tensor)
+ValueError: number of partitions in src[7568, 128] of 'load' exceed architecture limitation of 128.. Info on how to fix: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/api/nki.errors.html#err-num-partition-exceed-arch-limit
 
 --------------------------------------------------
 
 Function Documentation:
 --------------------------------------------------
+FUNCTION: add
+--------------------------------------------------
+nki.language.add
+
+Signature:
+nki.language.add(x, y, *, dtype=None, mask=None, **kwargs)
+
+Description:
+Add the inputs, element-wise.
+((Similar to numpy.add))
+
+Parameters:
+x – a tile or a scalar value.
+y – a tile or a scalar value. x.shape and y.shape must be broadcastable to a common shape, that will become the shape of the output.
+dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tiles, or whichever input type has the highest precision (see NKI Type Promotion for more information);
+mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+
+Returns:
+a tile that has x + y, element-wise.
+
+Example:
+import neuronxcc.nki.language as nl
+
+a = nl.load(a_tensor[0:128, 0:512])
+b = nl.load(b_tensor[0:128, 0:512])
+# add a and b element-wise and store in c[128, 512]
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+a = nl.load(a_tensor[0:128, 0:512])
+b = 2.2
+# add constant b to each element in a
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+a = nl.load(a_tensor[0:128, 0:512])
+b = nl.load(b_tensor[0:128, 0:1])
+# broadcast on free dimension -- [128, 1] is broadcasted to [128, 512]
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+a = nl.load(a_tensor[0:128, 0:512])
+b = nl.load(b_tensor[0:1, 0:512])
+# broadcast on partition dimension -- [1, 512] is broadcasted to [128, 512]
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+a = nl.load(a_tensor[0:128, 0:512])
+b = nl.load(b_tensor[0:1, 0:1])
+# broadcast on both dimensions -- [1, 1] is broadcasted to [128, 512]
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+a = nl.load(a_tensor[0:128, 0:1])
+b = nl.load(b_tensor[0:1, 0:512])
+# broadcast on each dimensions -- [128, 1] and [1, 512] are broadcasted to [128, 512]
+c = nl.add(a, b)
+nl.store(c_tensor[0:128, 0:512], c)
+
+Note:
+Broadcasting in the partition dimension is generally more expensive than broadcasting in free dimension. It is recommended to align your data to perform free dimension broadcast whenever possible.
+
+================================================================================
+
 FUNCTION: load
 --------------------------------------------------
 nki.language.load
@@ -569,48 +545,25 @@ nl.store(data_tensor[idx_tile, i_f], value=data_tile[0:64, 0:512])
 
 ================================================================================
 
-FUNCTION: multiply
+FUNCTION: zeros
 --------------------------------------------------
-nki.language.multiply
+nki.language.zeros
 
 Signature:
-nki.language.multiply(x, y, *, dtype=None, mask=None, **kwargs)
+nki.language.zeros(shape, dtype, *, buffer=None, name='', **kwargs)
 
 Description:
-Multiply the inputs, element-wise.
-((Similar to numpy.multiply))
+Create a new tensor of given shape and dtype on the specified buffer, filled with zeros.
+((Similar to numpy.zeros))
 
 Parameters:
-x – a tile or a scalar value.
-y – a tile or a scalar value. x.shape and y.shape must be broadcastable to a common shape, that will become the shape of the output.
-dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tiles, or whichever input type has the highest precision (see NKI Type Promotion for more information);
-mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
+shape – the shape of the tensor.
+dtype – the data type of the tensor (see Supported Data Types for more information).
+buffer – the specific buffer (ie, sbuf, psum, hbm), defaults to sbuf.
+name – the name of the tensor.
 
 Returns:
-a tile that has x * y, element-wise.
-
-================================================================================
-
-FUNCTION: sum
---------------------------------------------------
-nki.language.sum
-
-Signature:
-nki.language.sum(x, axis, *, dtype=None, mask=None, keepdims=False, **kwargs)
-
-Description:
-Sum of elements along the specified axis (or axes) of the input.
-((Similar to numpy.sum))
-
-Parameters:
-x – a tile.
-axis – int or tuple/list of ints. The axis (or axes) along which to operate; must be free dimensions, not partition dimension (0); can only be the last contiguous dim(s) of the tile: [1], [1,2], [1,2,3], [1,2,3,4]
-dtype – (optional) data type to cast the output type to (see Supported Data Types for more information); if not specified, it will default to be the same as the data type of the input tile.
-mask – (optional) a compile-time constant predicate that controls whether/how this instruction is executed (see NKI API Masking for details)
-keepdims – If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this option, the result will broadcast correctly against the input array.
-
-Returns:
-a tile with the sum of elements along the provided axis. This return tile will have a shape of the input tile’s shape with the specified axes removed.
+a new tensor allocated on the buffer.
 
 ================================================================================
 
@@ -662,28 +615,6 @@ Example:
 29  y_sbuf = nl.load(offset:offset+128, 0:y.shape[1]])
 30
 31  result_psum += nl.matmul(xT_sbuf, y_sbuf, transpose_x=True)
-
-================================================================================
-
-FUNCTION: zeros
---------------------------------------------------
-nki.language.zeros
-
-Signature:
-nki.language.zeros(shape, dtype, *, buffer=None, name='', **kwargs)
-
-Description:
-Create a new tensor of given shape and dtype on the specified buffer, filled with zeros.
-((Similar to numpy.zeros))
-
-Parameters:
-shape – the shape of the tensor.
-dtype – the data type of the tensor (see Supported Data Types for more information).
-buffer – the specific buffer (ie, sbuf, psum, hbm), defaults to sbuf.
-name – the name of the tensor.
-
-Returns:
-a new tensor allocated on the buffer.
 
 ================================================================================
 
