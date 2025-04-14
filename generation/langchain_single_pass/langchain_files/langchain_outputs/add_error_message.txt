@@ -1,3 +1,0 @@
-Checking correctness of nki_vector_add
-NKI and Torch match
-

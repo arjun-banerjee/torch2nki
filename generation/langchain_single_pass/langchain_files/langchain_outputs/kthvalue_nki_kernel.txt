@@ -1,0 +1,87 @@
+I'll implement the `kthvalue` kernel using NKI. This function should return the kth smallest value in a tensor along a specified dimension.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_kthvalue(a_tensor, k, dim=0):
+    """
+    Returns the kth smallest value along the specified dimension.
+    
+    Args:
+        a_tensor: The input tensor
+        k: The k value (1-based index)
+        dim: The dimension to find the kth value along (default: 0)
+    
+    Returns:
+        A tensor containing the kth smallest values
+    """
+    # Get the shape of the tensor
+    shape = list(a_tensor.shape)
+    
+    # Validate k
+    if k <= 0 or (dim < len(shape) and k > shape[dim]):
+        raise ValueError(f"k ({k}) is out of bounds for dimension {dim} with size {shape[dim]}")
+    
+    # Convert k to 0-based indexing
+    k = k - 1
+    
+    # If dim is not 0, we need to transpose the tensor to make dim the first dimension
+    if dim != 0:
+        # Create result with the appropriate shape
+        result_shape = shape.copy()
+        result_shape.pop(dim)
+        result = nl.ndarray(tuple(result_shape), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        
+        # Process based on the tensor shape and dimension
+        # This is a simplified version for a 2D tensor with dim=1
+        # For a more general solution, a more complex transpose logic would be needed
+        
+        if len(shape) == 2 and dim == 1:
+            # For dim=1 in a 2D tensor
+            sz_p = shape[0]
+            sz_f = shape[1]
+            
+            # Calculate the number of tiles needed for partition dimension
+            trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+            
+            for p in nl.affine_range(trip_count):
+                # Generate indices for current tile
+                i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+                i_f = nl.arange(sz_f)[None, :]
+                
+                # Load current tile
+                x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+                
+                # For each row, we'll find the kth smallest value
+                for idx_p in nl.affine_range(min(nl.tile_size.pmax, sz_p - p * nl.tile_size.pmax)):
+                    # Create a copy of the row to work with
+                    row = x_tile[idx_p, :]
+                    
+                    # Find kth smallest value in the row
+                    kth_val = row.copy()  # Start with a copy of the row
+                    
+                    # Sort the row to find the kth smallest element
+                    # Since direct sorting is not efficient in NKI, we'll use a selection algorithm
+                    for i in nl.affine_range(k + 1):
+                        # Find the minimum value and its position
+                        min_val = nl.min(kth_val, axis=0)
+                        
+                        # If this is the kth smallest, we're done
+                        if i == k:
+                            # Store the result
+                            nl.store(result[p * nl.tile_size.pmax + idx_p], value=min_val)
+                            break
+                        
+                        # Otherwise, replace the minimum value with a large value to find the next smallest
+                        kth_val = nl.where(kth_val == min_val, nl.full_like(kth_val, float('inf')), kth_val)
+            
+            return result
+        else:
+            raise NotImplementedError("Currently only supports 2D tensors with dim=1")
+    
+    # If dim is 0, it's more straightforward
+    # Create result with the appropriate shape
+    result_shape = shape

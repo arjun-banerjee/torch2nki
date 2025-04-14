@@ -1,0 +1,80 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_mean(a_tensor):
+    # Initialize result array as a scalar
+    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Get the total number of elements in the tensor
+    total_elements = 1
+    for dim in a_tensor.shape:
+        total_elements *= dim
+    
+    # Handle empty tensor case
+    if total_elements == 0:
+        nl.store(result, nl.zeros((), dtype=a_tensor.dtype))
+        return result
+        
+    # For non-empty tensors, calculate the mean
+    # Reshape tensor conceptually to 2D for tiling
+    if len(a_tensor.shape) == 1:
+        sz_p = a_tensor.shape[0]
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Initialize sum accumulator with correct shape and dtype
+        sum_acc = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+        
+        # Process tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate indices for current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+            
+            # Load data from tensor, handling boundary
+            tile = nl.load(a_tensor[i_p], mask=(i_p < sz_p))
+            
+            # Accumulate sum
+            sum_acc += nl.sum(tile, mask=(i_p < sz_p))
+            
+    else:
+        # Handle multi-dimensional tensor by tiling along first dimension
+        sz_p = a_tensor.shape[0]
+        remaining_dims = a_tensor.shape[1:]
+        
+        # Create index for remaining dimensions
+        remaining_indices = []
+        for i, dim_size in enumerate(remaining_dims):
+            remaining_indices.append(nl.arange(dim_size))
+        
+        # Convert to proper indexing format
+        if remaining_indices:
+            i_f = remaining_indices[0]
+            for idx in remaining_indices[1:]:
+                i_f = i_f[..., None]
+                idx = idx[None, ...]
+                i_f = i_f + idx
+        
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Initialize sum accumulator with correct shape and dtype
+        sum_acc = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+        
+        # Process tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate indices for current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load data from tensor, handling boundary
+            tile = nl.load(a_tensor[i_p], mask=(i_p < sz_p))
+            
+            # Accumulate sum
+            sum_acc += nl.sum(tile, mask=(i_p < sz_p))
+    
+    # Calculate mean by dividing sum by total number of elements
+    mean_value = sum_acc / total_elements
+    
+    # Store result
+    nl.store(result, mean_value)
+    
+    return result

@@ -1,0 +1,84 @@
+I'll create an efficient NKI kernel for cumsum operation. This kernel will handle arbitrary size tensors by tiling the computation to respect hardware limitations.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_cumsum(a_tensor):
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Get dimensions of the input tensor
+    if len(a_tensor.shape) == 1:
+        # Handle 1D tensor case
+        size = a_tensor.shape[0]
+        
+        # Calculate the number of tiles needed
+        tile_size = nl.tile_size.pmax
+        trip_count = math.ceil(size / tile_size)
+        
+        # Initialize cumulative sum to track across tiles
+        cum_sum = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.psum)
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i = p * tile_size + nl.arange(tile_size)
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[i], mask=(i < size))
+            
+            # Create a result tile for this segment
+            out_tile = nl.zeros(x_tile.shape, dtype=x_tile.dtype, buffer=nl.sbuf)
+            
+            # Add the previous cumulative sum to each element in this tile
+            out_tile = nl.add(x_tile, cum_sum)
+            
+            # Perform the cumulative sum within this tile
+            for j in range(1, tile_size):
+                # Only process elements within the valid range
+                if p * tile_size + j < size:
+                    # Add the previous element's value to the current element
+                    out_tile[j] = nl.add(out_tile[j], out_tile[j-1] - cum_sum)
+            
+            # Update the cumulative sum with the last element's value for the next tile
+            if p * tile_size + tile_size - 1 < size:
+                cum_sum = out_tile[tile_size - 1]
+            else:
+                # Handle the case where the last tile is not full
+                last_valid_idx = size - p * tile_size - 1
+                if last_valid_idx >= 0:
+                    cum_sum = out_tile[last_valid_idx]
+            
+            # Store the results back to external memory
+            nl.store(result[i], value=out_tile, mask=(i < size))
+    else:
+        # Handle multi-dimensional tensor case
+        # For simplicity, we'll perform cumsum along the last dimension
+        # Determine the dimensions
+        sz_p, sz_f = a_tensor.shape
+        
+        # Calculate the number of tiles needed for the partition dimension
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Create a result tile for this segment
+            out_tile = nl.zeros(x_tile.shape, dtype=x_tile.dtype, buffer=nl.sbuf)
+            
+            # Copy the first column as is
+            out_tile[:, 0] = x_tile[:, 0]
+            
+            # Perform cumsum along each row
+            for j in range(1, sz_f):
+                out_tile[:, j] = nl.add(out_tile

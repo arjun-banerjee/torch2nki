@@ -1,0 +1,89 @@
+I'll implement a custom kernel for `amin` using AWS Neural Kernel Interface (NKI). This kernel will find the minimum value in a tensor.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_amin(a_tensor):
+    """
+    Find the minimum value in a tensor using NKI.
+    
+    Parameters:
+    a_tensor: Input tensor of any shape
+    
+    Returns:
+    The minimum value in the tensor
+    """
+    # Get the total number of elements in the tensor
+    total_size = 1
+    for dim_size in a_tensor.shape:
+        total_size *= dim_size
+    
+    # Reshape the tensor to a 1D array conceptually
+    # We'll process it in tiles to respect hardware limitations
+    
+    # Initialize the result to hold the minimum value
+    # We start with the maximum possible value for the data type
+    if a_tensor.dtype == nl.float32 or a_tensor.dtype == nl.float16 or a_tensor.dtype == nl.bfloat16:
+        result = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        # Initialize with a large value
+        current_min = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.psum)
+        current_min += 3.4e38  # Close to FP32 max
+    else:  # Integer types
+        result = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+        # Initialize with a large value
+        current_min = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.psum)
+        current_min += 2147483647  # INT32_MAX
+    
+    # Calculate the number of tiles needed
+    # We'll use 1D tiling with nl.tile_size.pmax elements per tile
+    trip_count = math.ceil(total_size / nl.tile_size.pmax)
+    
+    # Process the tensor in tiles
+    for p in nl.affine_range(trip_count):
+        # Calculate the starting index for this tile
+        start_idx = p * nl.tile_size.pmax
+        
+        # Generate indices for the current tile
+        i_p = start_idx + nl.arange(nl.tile_size.pmax)
+        
+        # Load a tile from the flattened tensor
+        # We need to convert the linear indices to multi-dimensional indices
+        # For simplicity, we'll use reshape and slice operations
+        
+        # Create a mask to handle the boundary case
+        mask = i_p < total_size
+        
+        # Calculate multi-dimensional indices
+        # This is a simplified approach - for each index, we load the corresponding element
+        flat_indices = i_p
+        
+        # Load the data for this tile
+        # We need to handle the flattening of multi-dimensional arrays
+        tile_data = nl.zeros((nl.tile_size.pmax,), dtype=a_tensor.dtype, buffer=nl.sbuf)
+        
+        # For each element in the tile
+        for i in nl.affine_range(nl.tile_size.pmax):
+            idx = start_idx + i
+            if idx < total_size:
+                # Calculate the multi-dimensional indices
+                remaining = idx
+                indices = []
+                for dim_size in reversed(a_tensor.shape):
+                    indices.append(remaining % dim_size)
+                    remaining = remaining // dim_size
+                
+                # Reverse the indices to match the tensor's dimension order
+                indices.reverse()
+                
+                # Load the element
+                if len(indices) == 1:
+                    tile_data[i] = nl.load(a_tensor[indices[0]])
+                elif len(indices) == 2:
+                    tile_data[i] = nl.load(a_tensor[indices[0], indices[1]])
+                elif len(indices) == 3:
+                    tile_data[i] = nl.load(a_tensor[indices[0], indices[1], indices[2]])
+                elif len(indices) == 4:
+                    tile_data[i] = nl.load(a_

@@ -14,6 +14,7 @@ import datetime
 import json
 from langchain.memory import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
+from torch_xla.core import xla_model as xm
 
 
 from rate_limit_handler import retry_with_backoff, invoke_chain_with_retry
@@ -132,18 +133,10 @@ def generate_kernel_with_direct_docs_and_error_loop(
     Generate a NKI kernel using direct function documentation access and iteratively 
     improve it based on error feedback with detailed error documentation.
     """
-    print("Initializing components...")
     
-    # Initialize the error parser
-    print(f"Initializing NKI error parser from {error_doc_path}")
     error_parser = NKIErrorParser(error_doc_path)
-    print(f"Loaded {len(error_parser.list_all_errors())} error codes from documentation")
     
-    # Set up detailed trace log file
-    trace_log_path = output_address + ".detailed_trace.txt"
-    log_to_file(trace_log_path, "=== DETAILED TRACE LOG ===", append=False)
-    log_to_file(trace_log_path, f"Starting new kernel generation process at {datetime.datetime.now()}")
-    
+
     # Set up consolidated iteration log file
     consolidated_log_path = output_address + ".consolidated_iterations.txt"
     # Initialize with header only on first write (will be overwritten)
@@ -157,10 +150,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
     system_prompt = read_file(system_prompt_path)
     user_prompt = read_file(user_prompt_path)
     
-    log_to_file(trace_log_path, f"System Prompt:\n{system_prompt}\n")
-    log_to_file(trace_log_path, f"User Prompt:\n{user_prompt}\n")
-    
-    print(f"Starting documentation-based generation for: {user_prompt[:50]}...")
     
     # Initialize LLMs
     query_llm = ChatOpenAI(
@@ -188,7 +177,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
     )
     
     kernel_llm = ChatBedrock(
-        model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+        model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
         model_kwargs={"temperature": 0.85},
         client=bedrock_client,
         region_name="us-west-2"
@@ -198,14 +187,10 @@ def generate_kernel_with_direct_docs_and_error_loop(
 
     # Get list of available functions
     available_functions = get_available_functions(docs_dir)
-    print(f"Found {len(available_functions)} available NKI functions in documentation")
-    log_to_file(trace_log_path, f"AVAILABLE FUNCTIONS:\n{', '.join(available_functions)}\n")
-    
+   
     # Initial kernel generation with direct documentation
     try:
         # Select relevant functions
-        print("Selecting relevant functions for the task...")
-        log_to_file(trace_log_path, "SELECTING RELEVANT FUNCTIONS...")
         
         selected_functions = select_relevant_functions(
             query_llm,
@@ -213,28 +198,10 @@ def generate_kernel_with_direct_docs_and_error_loop(
             available_functions
         )
         
-        print(f"Selected functions: {', '.join(selected_functions)}")
-        log_to_file(trace_log_path, f"SELECTED FUNCTIONS:\n{', '.join(selected_functions)}\n")
-        
-        # Load documentation for selected functions
-        print("Loading documentation for selected functions...")
-        log_to_file(trace_log_path, "LOADING FUNCTION DOCUMENTATION...")
-        
+    
         function_docs = load_function_documentation(docs_dir, selected_functions)
-        log_to_file(trace_log_path, f"LOADED DOCUMENTATION:\n{function_docs[:500]}...\n")
-        
-        # Log the selected functions and their documentation
-        with open(output_address + ".function_selection", "w") as f:
-            f.write(f"USER PROMPT:\n{user_prompt}\n\n")
-            f.write(f"SELECTED FUNCTIONS:\n{', '.join(selected_functions)}\n\n")
-            f.write(f"FUNCTION DOCUMENTATION:\n{function_docs}\n\n")
-        
-        print(f"Function selection and documentation saved to {output_address}.function_selection")
-        
+    
         # Initial kernel generation with function documentation
-        print("Generating initial kernel...")
-        log_to_file(trace_log_path, "GENERATING INITIAL KERNEL...")
-        
         initial_generation_prompt = ChatPromptTemplate.from_template(
             "{system_prompt}\n\n"
             "Task: {user_prompt}\n\n"
@@ -248,7 +215,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
             user_prompt=user_prompt,
             function_docs=function_docs
         )
-        log_to_file(trace_log_path, f"FULL PROMPT TO LLM:\n{full_prompt}\n")
+        prompt_path = output_address + ".prompt_path.txt"
+        log_to_file(prompt_path, f"FULL PROMPT TO LLM:\n{full_prompt}\n", append = True)
         
         initial_kernel_chain = (
             initial_generation_prompt 
@@ -262,29 +230,22 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 "user_prompt": user_prompt,
                 "function_docs": function_docs
             },
-            log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
         )
         except Exception as e:
             print(f"Error in initial kernel generation: {e}")
-            log_to_file(trace_log_path, f"ERROR IN INITIAL KERNEL GENERATION: {e}")
             initial_generation = f"Error occurred: {str(e)}"
         
         # Save raw output
         write_file(output_address, initial_generation)
-        print(f"Raw LLM output saved to {output_address}")
-        log_to_file(trace_log_path, f"LLM RESPONSE:\n{initial_generation}\n")
         
         # Extract the kernel code
         try:
             kernel_code = extract_kernel_from_llm_response(initial_generation)
             kernel_code = update_function_name_in_text(kernel_code, kernel_func_name)
             write_file(kernel_module_path, kernel_code)
-            print(f"Initial kernel code saved to {kernel_module_path}")
-            log_to_file(trace_log_path, f"EXTRACTED KERNEL CODE:\n{kernel_code}\n")
         except ValueError as e:
             error_msg = f"Error extracting kernel code: {e}"
             print(error_msg)
-            log_to_file(trace_log_path, error_msg)
             return
         
         # Create previous error context to track history
@@ -294,7 +255,23 @@ def generate_kernel_with_direct_docs_and_error_loop(
         # Create enhanced error re-injection prompt with error documentation and history
         enhanced_error_reinject_prompt = ChatPromptTemplate.from_template(
             "{system_prompt}\n\n"
+            "Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, trying"
+            "to keep it as brief as possible. Focus on explaining the exact change you will be making to the code."
+            "I dont want the actual code, but be specific so someone that sees the same error message on a different line of code"
+            "can implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sure"
+            "you are not trying to do the same fixes multiple times. "
+            "When you are changing the code, try to only change the line with the error message and maybe code that relates."
+            "However, if the error you are facing is that the outputs differ, then you are allowed to change multiple lines."
+            "When the outputs differ, most likely the logic is wrong. I want you to notice this and in your reasoning state that the logic is "
+            "likely wrong and state which logic you will update. Please clearly state in your reasoning ***i see that the outputs differ***"
+            "Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```"
+            "The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. "
+            "Then, immediatly after write the python nki code inside triple backticks ``` ```."
+            "I repeat, I only want your output to first be the line of reasoning inside triple stars, then the "
+            "nki kernel code inside triple backticks. Do NOT put the reasoning inside the nki kernel code."
+            "Everything above this line is the most important information. Please make sure you follow these guidelines."
             "Task: {user_prompt}\n\n"
+            
             "{iteration_history}\n\n"
             "Previous error message:\n"
             "--------------------------------------------------\n"
@@ -304,18 +281,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
             "--------------------------------------------------\n"
             "{function_docs}\n"
             "--------------------------------------------------\n\n"
-            "Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, trying"
-            "to keep it as brief as possible. Focus on explaining the exact change you will be making to the code."
-            "I dont want the actual code, but be specific so someone that sees the same error message on a different line of code"
-            "can implement the same fix. Remember to keep it concise, but explanatory as you will be referencing this later to make sure"
-            "you are not trying to do the same fixes multiple times. "
-            "When you are changing the code, only change the line with the error message and maybe code that relates. I repeat, only change the line with the error message."
-            "I repeat, I do not want you changing code other than the line with the error and maybe lines that directly relate to that change"
-            "Your output should include the entire kernel code, NOT just individual fixes. I want to be able to run the code inside the ``` ```"
-            "The way I want your response structured is an explanation of your reasoning at the very start inside *** *** triple stars. "
-            "Then, immediatly after write the python nki code inside triple backticks ``` ```."
-            "I repeat, I only want your output to first be the line of reasoning inside triple stars, then the "
-            "nki kernel code inside triple backticks. Do NOT put the reasoning inside the nki kernel code."
+            
         )
         
         enhanced_error_chain = (
@@ -327,7 +293,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
         # Iterative error correction loop
         for iteration in range(max_iterations):
             print(f"\n=== Iteration {iteration + 1} ===")
-            log_to_file(trace_log_path, f"\n=== ITERATION {iteration + 1} ===\n")
             
             # Store the previous error message before running any new tests
             old_error_message = previous_error_message if 'previous_error_message' in locals() else ""
@@ -336,16 +301,14 @@ def generate_kernel_with_direct_docs_and_error_loop(
             # For the first iteration, we need to run the script on the initial code
             if iteration == 0:
                 # Run the test using the execution server for the initial kernel
-                log_to_file(trace_log_path, f"RUNNING TEST ON INITIAL CODE")
                 from extraction import run
                 error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output)
-                log_to_file(trace_log_path, f"TEST OUTPUT:\n{error_message}\n")
+
                 previous_error_message = error_message
                 
                 # If no errors in the initial code, we're done
                 if "Error" not in error_message and "error" not in error_message and "ERROR" not in error_message:
                     print("No errors detected in initial kernel! Kernel generation successful.")
-                    log_to_file(trace_log_path, "NO ERRORS DETECTED IN INITIAL KERNEL. KERNEL GENERATION SUCCESSFUL.")
                     # Log successful initial generation to the consolidated log
                     log_iteration_data(
                         consolidated_log_path,
@@ -361,23 +324,12 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     return 1
 
             error_line, error_description = extract_error_details(error_message)
-            if error_line and error_description:
-                print(f"\nERROR LINE: {error_line}")
-                print(f"ERROR DESCRIPTION: {error_description}")
-                log_to_file(trace_log_path, f"ERROR LINE: {error_line}\n")
-                log_to_file(trace_log_path, f"ERROR DESCRIPTION: {error_description}\n")
-            else:
+            if not error_line and error_description:
                 print("\nCould not extract specific error details.")
-                log_to_file(trace_log_path, "COULD NOT EXTRACT SPECIFIC ERROR DETAILS.\n")
 
-            # If we've reached here, there were errors in the previous iteration
-            # Parse error message and get documentation using API-style approach
-            print("Parsing error message for detailed documentation...")
-            log_to_file(trace_log_path, "PARSING ERROR MESSAGE...")
 
             # Get all available error codes
             available_errors = get_available_error_codes(error_parser)
-            log_to_file(trace_log_path, f"AVAILABLE ERRORS:\n{', '.join(available_errors)}\n")
 
             # Select relevant errors using the LLM
             error_selection_prompt = ChatPromptTemplate.from_template(
@@ -404,11 +356,9 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     "error_message": previous_error_message,
                     "error_list": error_list
                 },
-                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
             )
             except Exception as e:
                 print(f"Error in error selection: {e}")
-                log_to_file(trace_log_path, f"ERROR IN ERROR SELECTION: {e}")
                 error_response = "[]"  # Default to empty list on error
 
 
@@ -430,7 +380,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 
             except Exception as e:
                 print(f"Error parsing selected errors: {e}")
-                log_to_file(trace_log_path, f"ERROR PARSING SELECTED ERRORS: {e}\n")
                 
                 # Fallback mechanism: try to extract error codes using regex
                 try:
@@ -438,33 +387,22 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     matches = pattern.findall(error_response)
                     selected_errors = [e for e in matches if e in available_errors]
                     print(f"Using fallback: Extracted errors via regex: {', '.join(selected_errors)}")
-                    log_to_file(trace_log_path, f"FALLBACK: EXTRACTED ERRORS VIA REGEX: {', '.join(selected_errors)}\n")
                 except Exception as fallback_error:
                     print(f"Fallback parsing also failed: {fallback_error}")
-                    log_to_file(trace_log_path, f"FALLBACK PARSING ALSO FAILED: {fallback_error}\n")
                     selected_errors = []
 
-            print(f"Selected errors: {', '.join(selected_errors)}")
-            log_to_file(trace_log_path, f"SELECTED ERRORS:\n{', '.join(selected_errors)}\n")
 
             # Load documentation for selected errors
             error_documentation = load_error_documentation(error_parser, selected_errors)
-            log_to_file(trace_log_path, f"LOADED ERROR DOCUMENTATION:\n{error_documentation[:500]}...\n")
-
             # Log the selected errors and their documentation
             with open(f"{output_address}.error_selection", "w") as f:
                 f.write(f"ERROR MESSAGE:\n{previous_error_message}\n\n")
                 f.write(f"SELECTED ERRORS:\n{', '.join(selected_errors)}\n\n")
                 f.write(f"ERROR DOCUMENTATION:\n{error_documentation}\n\n")
 
-            print(f"Error selection and documentation saved to {output_address}.error_selection")
-
             # If no documented errors found, use a fallback message
             if not selected_errors:
                 error_documentation = "No specific documentation found for the errors in the output. Please analyze the error message carefully."
-
-            # Check if we need additional functions based on error
-            print("Checking if additional functions are needed based on error...")
             
             additional_functions_prompt = ChatPromptTemplate.from_template(
                 "Based on the error message below, do we need to include documentation for any additional NKI functions "
@@ -489,11 +427,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     "error_message": previous_error_message,
                     "all_functions": ", ".join(available_functions)
                 },
-                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
             )
             except Exception as e:
-                print(f"Error in additional functions selection: {e}")
-                log_to_file(trace_log_path, f"ERROR IN ADDITIONAL FUNCTIONS SELECTION: {e}")
                 additional_response = "[]"  # Default to empty list on error
 
 
@@ -534,7 +469,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
                 
                 if new_functions:
                     print(f"Adding additional functions: {', '.join(new_functions)}")
-                    log_to_file(trace_log_path, f"ADDING ADDITIONAL FUNCTIONS: {', '.join(new_functions)}\n")
                     
                     # Add to selected functions
                     selected_functions.extend(new_functions)
@@ -543,14 +477,8 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     additional_docs = load_function_documentation(docs_dir, new_functions)
                     function_docs += "\n\n" + additional_docs
                     
-                    # Log updated documentation
-                    with open(f"{output_address}.function_selection", "w") as f:
-                        f.write(f"UPDATED SELECTED FUNCTIONS:\n{', '.join(selected_functions)}\n\n")
-                        f.write(f"ADDED FUNCTIONS:\n{', '.join(new_functions)}\n\n")
-                        f.write(f"ADDED DOCUMENTATION:\n{additional_docs}\n\n")
             except Exception as e:
                 print(f"Error parsing additional functions: {e}")
-                log_to_file(trace_log_path, f"ERROR PARSING ADDITIONAL FUNCTIONS: {e}\n")
                 
                 # Fallback mechanism: try to extract function names using regex
                 try:
@@ -560,7 +488,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     
                     if valid_matches:
                         print(f"Using fallback: Adding functions detected via regex: {', '.join(valid_matches)}")
-                        log_to_file(trace_log_path, f"FALLBACK: ADDING FUNCTIONS VIA REGEX: {', '.join(valid_matches)}\n")
                         
                         # Add to selected functions
                         selected_functions.extend(valid_matches)
@@ -570,8 +497,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
                         function_docs += "\n\n" + additional_docs
                 except Exception as fallback_error:
                     print(f"Fallback parsing also failed: {fallback_error}")
-                    log_to_file(trace_log_path, f"FALLBACK PARSING ALSO FAILED: {fallback_error}\n")
-            
+                    
             # Create iteration history for context
             iteration_history = ""
             if previous_iteration_info:
@@ -581,17 +507,19 @@ def generate_kernel_with_direct_docs_and_error_loop(
             
             # Generate improved kernel with error feedback, documentation, and history
             print(f"Generating improved kernel (iteration {iteration + 1})...")
-            log_to_file(trace_log_path, f"GENERATING IMPROVED KERNEL (ITERATION {iteration + 1})...")
             
+
             # Log the full error prompt being sent to the LLM
             full_error_prompt = enhanced_error_reinject_prompt.format(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                iteration_history=iteration_history,
+                iteration_history="",
                 previous_error_message=previous_error_message,
                 function_docs=function_docs
             )
-            log_to_file(trace_log_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n")
+            log_to_file(prompt_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n", append=False)
+            
+            
             
             try:
                 improved_generation = invoke_chain_with_retry(enhanced_error_chain, {
@@ -601,74 +529,48 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     "previous_error_message": previous_error_message,
                     "function_docs": function_docs
                 },
-                log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
             )
             except Exception as e:
-                print(f"Error in improved kernel generation: {e}")
-                log_to_file(trace_log_path, f"ERROR IN IMPROVED KERNEL GENERATION: {e}")
                 improved_generation = f"Error occurred: {str(e)}"
-            
+                
             # Save the raw output
             write_file(output_address, improved_generation)
-            print(f"Raw LLM output saved to {output_address}")
-            log_to_file(trace_log_path, f"LLM RESPONSE FOR ITERATION {iteration + 1}:\n{improved_generation}\n")
             
             # Extract reasoning and log it
             reasoning_text = extract_reasoning(improved_generation)
             if reasoning_text:
-                with open(reasoning_log_path, "a", encoding="utf-8") as log_file:
-                    log_file.write(f"=== Iteration {iteration + 1} ===\n")
-                    log_file.write(reasoning_text)
-                    log_file.write("\n\n")
-                # Also write the reasoning with triple backticks to the output file
-                with open(output_address + ".reasoning", "a", encoding="utf-8") as reasoning_file:
-                    reasoning_file.write(f"=== Iteration {iteration + 1} ===\n")
-                    reasoning_file.write(f"```\n{reasoning_text}\n```")
-                    reasoning_file.write("\n\n")
-                print("Reasoning extracted and appended to reasoning log.")
-                log_to_file(trace_log_path, f"EXTRACTED REASONING:\n{reasoning_text}\n")
-                
                 # Add reasoning to iteration history
                 previous_iteration_info.append(f"Reasoning: {reasoning_text}")
-                print(reasoning_text)
-            else:
-                print("No reasoning found in the output.")
-                log_to_file(trace_log_path, "NO REASONING FOUND IN THE OUTPUT.")
-
+        
             # Extract the updated kernel code
             try:
                 kernel_code = extract_kernel_from_llm_response(improved_generation)
                 kernel_code = update_function_name_in_text(kernel_code, kernel_func_name)
                 write_file(kernel_module_path, kernel_code)
-                print(f"Updated kernel code saved to {kernel_module_path}")
-                log_to_file(trace_log_path, f"UPDATED KERNEL CODE:\n{kernel_code}\n")
                 
                 # Add the code snippet to the iteration history
                 previous_iteration_info.append(f"Generated code: {kernel_code[:500]}...")
             except ValueError as e:
                 error_msg = f"Error extracting kernel code: {e}"
                 print(error_msg)
-                log_to_file(trace_log_path, error_msg)
                 continue
             
             # Now run the test using the execution server
-            log_to_file(trace_log_path, f"RUNNING TEST ON UPDATED CODE")
             from extraction import run
-            error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output)
-            log_to_file(trace_log_path, f"TEST OUTPUT:\n{error_message}\n")
+            error_message = run(test_func_name, kernel_func_name, kernel_module_path, test_script_output, xm.xla_device())
 
             # Add test results to iteration history
             previous_iteration_info.append(f"Test result: {error_message[:500]}...")
             
-            # NEW FEATURE: Generate a report on the result of the changes
-            # NEW FEATURE: Generate a report on the result of the changes
+
             if iteration > 0:  # Skip for the first iteration as we don't have a previous solution to compare
-                print("Generating report on the results of the changes...")
-                log_to_file(trace_log_path, "GENERATING REPORT ON RESULTS OF CHANGES...")
+                
                 
                 # Extract error line from old error message if possible
                 old_error_line, _ = extract_error_details(old_error_message)
                 new_error_line, _ = extract_error_details(error_message)
+
+                
                 
                 old_error_line_info = f"Error occurred at line: {old_error_line}" if old_error_line else "Error line could not be determined."
                 new_error_line_info = f"Error occurred at line: {new_error_line}" if new_error_line else "Error line could not be determined."
@@ -707,11 +609,9 @@ def generate_kernel_with_direct_docs_and_error_loop(
                         "new_error_message": error_message,
                         "new_error_line_info": new_error_line_info
                     },
-                    log_to_file_func=lambda msg: log_to_file(trace_log_path, msg)
                 )
                 except Exception as e:
                     print(f"Error in change report generation: {e}")
-                    log_to_file(trace_log_path, f"ERROR IN CHANGE REPORT GENERATION: {e}")
                     change_report_json = '{"correct": false, "report": "Error occurred during report generation"}'
                 
                 # Extract JSON from the response (in case there's additional text)
@@ -734,23 +634,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
                     correct = False
                     report = change_report_json
                 
-                # Save the full report (both JSON and extracted values)
-                with open(output_address + ".change_reports", "a", encoding="utf-8") as report_file:
-                    report_file.write(f"=== Change Report for Iteration {iteration + 1} ===\n")
-                    report_file.write(f"Raw response:\n{change_report_json}\n\n")
-                    report_file.write(f"Extracted values:\n")
-                    report_file.write(f"correct: {correct}\n")
-                    report_file.write(f"report: {report}\n")
-                    report_file.write("\n\n")
-                
-                # Also print the report to console
-                print(f"\n=== Change Report for Iteration {iteration + 1} ===")
-                print(f"correct: {correct}")
-                print(f"report: {report}")
-                print("\n")
-                
-                # Log the report
-                log_to_file(trace_log_path, f"CHANGE REPORT:\ncorrect: {correct}\nreport: {report}\n")
                 
                 # Add report to iteration history
                 previous_iteration_info.append(f"Change report: correct={correct}, report={report}")
@@ -770,7 +653,7 @@ def generate_kernel_with_direct_docs_and_error_loop(
 
                 # Update the previous error message for the next iteration
                 previous_error_message = error_message
-                
+
                 # If no errors, we're done
                 if "Error" not in error_message and "error" not in error_message and "ERROR" not in error_message:
                     log_iteration_data(
@@ -785,22 +668,16 @@ def generate_kernel_with_direct_docs_and_error_loop(
                         {"correct": True, "report": "Final successful iteration with no errors detected."}
                     )
                     print("No errors detected! Kernel generation successful.")
-                    log_to_file(trace_log_path, "NO ERRORS DETECTED. KERNEL GENERATION SUCCESSFUL.")
                     return 1
                 
                 # Pause for review before the next iteration if needed
                 if iteration < max_iterations - 1:
-                    log_to_file(trace_log_path, "WAITING FOR USER INPUT TO CONTINUE TO NEXT ITERATION...")
-                    #input("Press Enter to continue to the next iteration (or Ctrl+C to exit)...")
-
+                    print("Kernel iteration process completed.")
                     
-                    print("Kernel generation process completed.")
-                    log_to_file(trace_log_path, "KERNEL GENERATION PROCESS COMPLETED.")
 
     except Exception as e:
         error_details = traceback.format_exc()
         print(f"Error in kernel generation pipeline: {e}")
-        log_to_file(trace_log_path, f"ERROR IN KERNEL GENERATION PIPELINE:\n{e}\n{error_details}")
         
         # Save the error
         with open(output_address, "w") as f:
@@ -830,94 +707,166 @@ def generate_kernel_with_direct_docs_and_error_loop(
 if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
+
+    elementwise_operators = [
+       "add", "sub", 
+       "mul", 
+       "div", 
+       "abs", "exp", "log", "sqrt", "rsqrt", 
+       "pow", "sin", 
+       "cos", # TODO: precision error for some reason
+       "tan", # TODO: precision error here as well
+       "asin", "acos",
+       "atan", 
+       "sinh", "cosh", 
+       "tanh", "sigmoid", "relu", 
+       "threshold"
+    ]
     
-    # multi_element_operators = [
-    #     "softmax", "log_softmax", "max", "min", "sum", "mean", "var", "std", "norm",
-    #     "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
-    #     "where", "eq", "ne", "gt", "lt", "clamp", "sort", "topk", "kthvalue", "median",
-    #     "mode", "percentile", "logsumexp", "amax", "amin", "all", "any", "bincount",
-    #     "unique", "unique_consecutive"
-    # ]
-
-    # multi_element_test_names = [
-    #     "test_torch_softmax",
-    #     "test_torch_log_softmax",
-    #     "test_torch_max",
-    #     "test_torch_min",
-    #     "test_torch_sum",
-    #     "test_torch_mean",
-    #     "test_torch_var",
-    #     "test_torch_std",
-    #     "test_torch_norm",
-    #     "test_torch_cumsum",
-    #     "test_torch_cumprod",
-    #     "test_torch_prod",
-    #     "test_torch_round",
-    #     "test_torch_floor",
-    #     "test_torch_ceil",
-    #     "test_torch_trunc",
-    #     "test_torch_sign",
-    #     "test_torch_where",
-    #     "test_torch_eq",
-    #     "test_torch_ne",
-    #     "test_torch_gt",
-    #     "test_torch_lt",
-    #     "test_torch_clamp",
-    #     "test_torch_sort",
-    #     "test_torch_topk",
-    #     "test_torch_kthvalue",
-    #     "test_torch_median",
-    #     "test_torch_mode",
-    #     "test_torch_percentile",
-    #     "test_torch_logsumexp",
-    #     "test_torch_amax",
-    #     "test_torch_amin",
-    #     "test_torch_all",
-    #     "test_torch_any",
-    #     "test_torch_bincount",
-    #     "test_torch_unique",
-    #     "test_torch_unique_consecutive"
-    # ]
-
-    # tests_passed_dict = {}
-
-    # elementwise_operators = [
-    #     "add", "sub", "mul", "div", "abs", "exp", "log", "sqrt", "rsqrt",
-    #     "pow", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
-    #     "tanh", "sigmoid", "relu", "threshold"
-    # ]
-    # elementwise_test_names = [
-    #     "test_torch_addition",
-    #     "test_torch_subtraction",
-    #     "test_torch_multiplication",
-    #     "test_torch_division",
-    #     "test_torch_absolute",
-    #     "test_torch_exponential",
-    #     "test_torch_log",
-    #     "test_torch_sqrt",
-    #     "test_torch_rsqrt",
-    #     "test_torch_power",
-    #     "test_torch_sine",
-    #     "test_torch_cosine",
-    #     "test_torch_tangent",
-    #     "test_torch_arcsine",
-    #     "test_torch_arccosine",
-    #     "test_torch_arctangent",
-    #     "test_torch_hyperbolic_sine",
-    #     "test_torch_hyperbolic_cosine",
-    #     "test_torch_hyperbolic_tangent",
-    #     "test_torch_sigmoid",
-    #     "test_torch_relu",
-    #     "test_torch_threshold"
-    # ]   
-
+    elementwise_test_names = [
+        "test_torch_addition",
+        "test_torch_subtraction",
+        "test_torch_multiplication",
+        "test_torch_division",
+        "test_torch_absolute",
+        "test_torch_exponential",
+        "test_torch_log",
+        "test_torch_sqrt",
+        "test_torch_rsqrt",
+        "test_torch_power",
+        "test_torch_sine",
+        "test_torch_cosine",
+        "test_torch_tangent",
+        "test_torch_arcsine",
+        "test_torch_arccosine",
+        "test_torch_arctangent",
+        "test_torch_hyperbolic_sine",
+        "test_torch_hyperbolic_cosine",
+        "test_torch_hyperbolic_tangent",
+        "test_torch_sigmoid",
+        "test_torch_relu",
+        "test_torch_threshold"
+    ]   
+    
     multi_element_operators = [
-        "sum"
+        "softmax", "log_softmax", "max", "min",
+        "sum",
+        "mean", "var", "std", "norm",
+        "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
+        "where", "eq", "ne", "gt", "lt", "clamp", "sort", "topk", "kthvalue", "median",
+        "mode", "percentile", "logsumexp", "amax", "amin", "all", "any", "bincount",
+        "unique", "unique_consecutive"
     ]
 
     multi_element_test_names = [
-        "test_torch_sum",
+        "test_torch_softmax",
+        "test_torch_log_softmax",
+        "test_torch_max",
+        "test_torch_min",
+        "test_torch_sum", # doesn't generate the whole kernel for some reason
+        "test_torch_mean",
+        "test_torch_var",
+        "test_torch_std",
+        "test_torch_norm",
+        "test_torch_cumsum",
+        "test_torch_cumprod",
+        "test_torch_prod",
+        "test_torch_round",
+        "test_torch_floor",
+        "test_torch_ceil",
+        "test_torch_trunc",
+        "test_torch_sign",
+        "test_torch_where",
+        "test_torch_eq",
+        "test_torch_ne",
+        "test_torch_gt",
+        "test_torch_lt",
+        "test_torch_clamp",
+        "test_torch_sort",
+        "test_torch_topk",
+        "test_torch_kthvalue",
+        "test_torch_median",
+        "test_torch_mode",
+        "test_torch_percentile",
+        "test_torch_logsumexp",
+        "test_torch_amax",
+        "test_torch_amin",
+        "test_torch_all",
+        "test_torch_any",
+        "test_torch_bincount",
+        "test_torch_unique",
+        "test_torch_unique_consecutive"
     ]
+    
+    # product_operators = [
+    #     "inner",
+    #     "outer",
+    #     "dot",
+    #     "vdot",
+    #     "cross",
+    #     "matmul",
+    #     "mm",
+    #     "mv",
+    #     "bmm",
+    #     "tensordot",
+    #     "einsum",
+    #     "kron", 
+    #     "hadamard",
+    #     "linalg_vecdot",
+    #     "linalg_multi_dot"
+    # ]
+    
+    # product_test_names = [
+    #     "test_torch_inner",
+    #     "test_torch_outer",
+    #     "test_torch_dot",
+    #     "test_torch_vdot",
+    #     "test_torch_cross",
+    #     "test_torch_matmul",
+    #     "test_torch_mm",
+    #     "test_torch_mv",
+    #     "test_torch_bmm",
+    #     "test_torch_tensordot",
+    #     "test_torch_einsum",
+    #     "test_torch_kron", 
+    #     "test_torch_hadamard",
+    #     "test_torch_linalg_vecdot",
+    #     "test_torch_linalg_multi_dot"
+    # ]
+
+
+    # product_test_names = [
+    #     "test_torch_tensordot",
+    #     "test_torch_einsum",
+    #     "test_torch_kron", 
+    #     "test_torch_linalg_vecdot",
+    #     "test_torch_linalg_multi_dot"
+    # ]
+    # product_operators = [
+    #     "tensordot",
+    #     "einsum",
+    #     "kron",
+    #     "linalg_vecdot",
+    #     "linalg_multi_dot"
+    # ]
+
+    product_test_names = [
+        "test_torch_ctc"
+    ]
+    product_operators = [
+        "ctc"
+    ]
+
+
+    # tests_passed_dict = {}
+
+    # multi_element_operators = [
+    #     "mode"
+    # ]
+
+    # multi_element_test_names = [
+    #     "test_torch_mode"   
+    # ]
 
     tests_passed_dict = {}
 
@@ -939,24 +888,31 @@ if __name__ == "__main__":
 
         
         # Run the updated generator with direct documentation and error loop
-        result = generate_kernel_with_direct_docs_and_error_loop(
-            kernel_func_name,
-            system_prompt_path,
-            user_prompt_path,
-            output_address,
-            kernel_module_path,
-            test_name,
-            test_script_output,
-            reasoning_log_path,
-            error_doc_path,
-            docs_dir,
-            max_iterations=10
-        )
-        if result:
-            print(result)
-            tests_passed_dict[operator] = True
-        else:
-            tests_passed_dict[operator] = False
+        result = False
+        ctr = 0
+
+        while ctr < 1:
+            result = generate_kernel_with_direct_docs_and_error_loop(
+                kernel_func_name,
+                system_prompt_path,
+                user_prompt_path,
+                output_address,
+                kernel_module_path,
+                test_name,
+                test_script_output,
+                reasoning_log_path,
+                error_doc_path,
+                docs_dir,
+                max_iterations=6
+            )
+            if result:
+                print(result)
+                tests_passed_dict[operator] = True
+                break
+            else:
+                tests_passed_dict[operator] = False
+
+            ctr += 1
 
     # Save test_passed_dict to a file, and make the file if it doesn't exist
     with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:

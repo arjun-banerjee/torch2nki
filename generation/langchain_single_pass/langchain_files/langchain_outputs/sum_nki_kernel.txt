@@ -1,25 +1,94 @@
-***Since the input tensor is in HBM and we want to sum all elements, we'll first load it into SBUF, then use nl.sum() with axis=1 to sum along each row, and finally use another nl.sum() to get the total sum across columns, storing this scalar result back to HBM***
+I'll create a custom NKI kernel for implementing the `sum` operation efficiently. This kernel will follow best practices for AWS Neural Kernel Interface and handle tensors of various shapes and sizes.
 
 ```python
 from neuronxcc import nki
 import neuronxcc.nki.language as nl
+import math
 
 @nki.jit
 def nki_sum(a_tensor):
-    # Initialize scalar result array in HBM
-    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    """
+    Computes the sum of all elements in the input tensor.
     
-    # Load data into SBUF and transpose for axis 1 reduction
-    input_sbuf = nl.load(a_tensor)
-    transposed = nl.transpose(input_sbuf)
+    Args:
+        a_tensor: Input tensor of any shape.
+        
+    Returns:
+        A scalar value representing the sum of all elements in the tensor.
+    """
+    # Get the shape of the input tensor
+    shape = a_tensor.shape
     
-    # First sum reduces along rows
-    row_sums = nl.sum(transposed, axis=1)
-    # Second sum reduces the row sums to final scalar
-    final_sum = nl.sum(row_sums, axis=1)
+    # For a scalar input, just return it
+    if len(shape) == 0:
+        return nl.load(a_tensor)
     
-    # Store scalar result
-    nl.store(result, final_sum)
+    # For arrays, we need to process them
+    # Initialize scalar result to accumulate the sum
+    sum_result = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.psum)
     
-    return result
-```
+    # For 1D arrays
+    if len(shape) == 1:
+        size = shape[0]
+        trip_count = math.ceil(size / nl.tile_size.pmax)
+        
+        for p in nl.affine_range(trip_count):
+            # Generate indices for the current tile
+            indices = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[indices], mask=(indices < size))
+            
+            # Sum the elements in the current tile
+            tile_sum = nl.sum(x_tile, axis=0)
+            
+            # Accumulate to the overall sum
+            sum_result += tile_sum
+    
+    # For 2D arrays
+    elif len(shape) == 2:
+        sz_p, sz_f = shape
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        for p in nl.affine_range(trip_count):
+            # Generate indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Sum the elements in the current tile
+            tile_sum = nl.sum(x_tile, axis=[0, 1])
+            
+            # Accumulate to the overall sum
+            sum_result += tile_sum
+    
+    # For higher-dimensional arrays, we need to reshape into a 2D array first
+    else:
+        # Calculate the size of the first dimension and the product of all other dimensions
+        sz_p = shape[0]
+        sz_f = 1
+        for dim in shape[1:]:
+            sz_f *= dim
+        
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        for p in nl.affine_range(trip_count):
+            # Generate indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory, treating it as a 2D tensor
+            x_tile = nl.load(a_tensor.reshape(sz_p, sz_f)[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Sum the elements in the current tile
+            tile_sum = nl.sum(x_tile, axis=[0, 1])
+            
+            # Accumulate to the overall sum
+            sum_result += tile_sum

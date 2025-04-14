@@ -1,0 +1,97 @@
+I'll create an NKI kernel that implements the "all" operation. This function will check if all elements in a tensor are True (non-zero), and return a boolean result.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_all(a_tensor):
+    """
+    Check if all elements in a tensor are True (non-zero).
+    
+    Args:
+        a_tensor: Input tensor to be checked
+        
+    Returns:
+        True if all elements are non-zero, False otherwise
+    """
+    # Initialize a result tensor to store the final result
+    # We'll start with True and use logical_and to update it
+    result = nl.ones((), dtype=nl.bool_, buffer=nl.shared_hbm)
+    
+    # Get the shape of the input tensor
+    shape = a_tensor.shape
+    
+    # Calculate total number of elements
+    total_elements = 1
+    for dim in shape:
+        total_elements *= dim
+    
+    # If the tensor is empty, return True (consistent with numpy behavior)
+    if total_elements == 0:
+        return result
+    
+    # For a scalar tensor, we can directly check its value
+    if len(shape) == 0:
+        temp = nl.load(a_tensor)
+        temp_bool = temp != 0
+        nl.store(result, value=temp_bool)
+        return result
+    
+    # For 1D or higher dimensional tensors, we need to iterate over them in tiles
+    # Handle 1D tensor case
+    if len(shape) == 1:
+        sz = shape[0]
+        trip_count = math.ceil(sz / nl.tile_size.pmax)
+        
+        # Initialize an accumulator for the result
+        all_true = nl.ones((), dtype=nl.bool_, buffer=nl.sbuf)
+        
+        # Process the tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[i_p], mask=(i_p < sz))
+            
+            # Convert values to boolean (non-zero = True)
+            bool_tile = x_tile != 0
+            
+            # Compute if all elements in this tile are True
+            # We first need to check if any element is False
+            any_false = nl.reduce_any(nl.logical_not(bool_tile))
+            
+            # Update the accumulator - AND with current result
+            all_true = nl.logical_and(all_true, nl.logical_not(any_false))
+        
+        # Store the final result
+        nl.store(result, value=all_true)
+        
+    # Handle 2D or higher dimensional tensors
+    else:
+        # For simplicity, we'll flatten the tensor into a 2D representation
+        sz_p = shape[0]
+        sz_f = 1
+        for i in range(1, len(shape)):
+            sz_f *= shape[i]
+            
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Initialize an accumulator for the result
+        all_true = nl.ones((), dtype=nl.bool_, buffer=nl.sbuf)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        # Process the tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            if len(shape) == 2:
+                x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_
