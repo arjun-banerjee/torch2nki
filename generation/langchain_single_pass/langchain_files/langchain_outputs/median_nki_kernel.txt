@@ -1,0 +1,86 @@
+I'll create an NKI kernel to calculate the median of a tensor. Here's my implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_median(a_tensor):
+    # Get shape information
+    shape = a_tensor.shape
+    
+    # If input is empty, return None
+    if shape[0] == 0:
+        return None
+    
+    # Flatten the tensor to 1D for median calculation
+    flattened_size = 1
+    for dim in shape:
+        flattened_size *= dim
+    
+    # Initialize result as a scalar value
+    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Create a temporary buffer to store the flattened array
+    flat_array = nl.ndarray((flattened_size,), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed for the input tensor
+    trip_count = math.ceil(flattened_size/nl.tile_size.pmax)
+    
+    # Flatten the tensor into flat_array
+    flat_idx = 0
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for the current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+        
+        # Create a mask to handle the edge case
+        mask = i_p < flattened_size
+        
+        # Calculate the original tensor indices
+        original_indices = []
+        remaining_idx = i_p.copy()
+        stride = 1
+        for dim_size in reversed(shape):
+            original_indices.insert(0, (remaining_idx % dim_size))
+            remaining_idx = remaining_idx // dim_size
+            stride *= dim_size
+        
+        # Load the values from the original tensor
+        # For simplicity, we'll handle up to 4D tensors
+        if len(shape) == 1:
+            vals = nl.load(a_tensor[original_indices[0]], mask=mask)
+        elif len(shape) == 2:
+            vals = nl.load(a_tensor[original_indices[0], original_indices[1]], mask=mask)
+        elif len(shape) == 3:
+            vals = nl.load(a_tensor[original_indices[0], original_indices[1], original_indices[2]], mask=mask)
+        else:  # 4D or more, handle as 4D
+            vals = nl.load(a_tensor[original_indices[0], original_indices[1], original_indices[2], original_indices[3]], mask=mask)
+        
+        # Store in flat array
+        nl.store(flat_array[i_p], value=vals, mask=mask)
+    
+    # Now we need to sort the flattened array
+    # We'll implement a simple bubble sort as a demonstration
+    # In practice, more efficient sorting methods would be used
+    for i in nl.affine_range(flattened_size):
+        for j in nl.affine_range(flattened_size - i - 1):
+            j_idx = nl.arange(1)
+            j_val = nl.load(flat_array[j])
+            j_next_val = nl.load(flat_array[j+1])
+            
+            # If current element is greater than next, swap them
+            swap_needed = j_val > j_next_val
+            if swap_needed:
+                nl.store(flat_array[j], value=j_next_val)
+                nl.store(flat_array[j+1], value=j_val)
+    
+    # Calculate the median
+    if flattened_size % 2 == 1:
+        # Odd length: return the middle element
+        mid_idx = flattened_size // 2
+        median_value = nl.load(flat_array[mid_idx])
+        nl.store(result, value=median_value)
+    else:
+        # Even length: return average of two middle elements
+        mid_idx1 = flattened_size //

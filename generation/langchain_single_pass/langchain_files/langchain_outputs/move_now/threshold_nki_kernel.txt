@@ -1,0 +1,58 @@
+Based on the requirements, I'll create a NKI kernel for the threshold operation that follows the specified format and best practices. Here's the implementation:
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_threshold(input_tensor, threshold_value, replacement_value):
+    """
+    Applies a threshold operation on the input tensor.
+    If an element is greater than the threshold, keeps it unchanged.
+    Otherwise, replaces it with the replacement value.
+    
+    Args:
+        input_tensor: Input tensor to threshold
+        threshold_value: The threshold value to compare against
+        replacement_value: The value to use for replacement when below threshold
+    
+    Returns:
+        Tensor with threshold applied
+    """
+    # Initialize result array in shared HBM
+    result = nl.ndarray(input_tensor.shape, dtype=input_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input data into on-chip memory
+    input_data = nl.load(input_tensor)
+    
+    # Create mask for values greater than threshold
+    mask = nl.greater(input_data, threshold_value)
+    
+    # Apply threshold operation using where
+    output = nl.where(mask, input_data, replacement_value)
+    
+    # Store result back to HBM
+    nl.store(result, output)
+    
+    return result
+```
+
+This implementation:
+
+1. Uses proper initialization of the result array in shared HBM as required
+2. Uses nl.load to bring data from HBM to on-chip memory
+3. Utilizes nl.greater for comparison and nl.where for conditional selection
+4. Uses nl.store to write results back to HBM
+5. Follows the vectorized approach without explicit loops
+6. Returns the result as required
+
+The kernel performs the threshold operation in a vectorized manner by:
+1. Creating a boolean mask for all elements greater than the threshold
+2. Using nl.where to select either the original value (when above threshold) or the replacement value (when below threshold)
+
+This implementation is efficient because:
+- It minimizes memory operations by doing a single load and store
+- Uses built-in NKI operations (greater, where) that are optimized for the hardware
+- Avoids element-wise loops, operating on the entire tensor at once
+
+The kernel follows all the specified requirements and best practices for NKI kernel development.

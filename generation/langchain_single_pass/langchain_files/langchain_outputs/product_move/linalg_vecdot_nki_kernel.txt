@@ -1,0 +1,22 @@
+***I will implement a vector dot product using nl.multiply for element-wise multiplication and nl.sum for reduction, properly handling scalar output with correct axis handling***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def linalg_vecdot(vec1, vec2):
+    # Initialize scalar result
+    result = nl.zeros((), dtype=vec1.dtype, buffer=nl.shared_hbm)
+    
+    # Compute element-wise multiplication
+    product = nl.multiply(vec1, vec2)
+    
+    # Sum up all elements along proper axis
+    temp = nl.sum(nl.transpose(product), axis=1)
+    
+    # Store scalar result
+    nl.store(result, temp)
+    
+    return result
+```

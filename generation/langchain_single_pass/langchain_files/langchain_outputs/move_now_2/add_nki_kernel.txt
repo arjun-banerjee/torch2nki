@@ -1,0 +1,71 @@
+Here’s a custom kernel for performing element-wise addition using the AWS Neural Kernel Interface (NKI). This kernel efficiently loads input tensors, performs the addition, and stores the result back into device memory as per your requirements.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_vectorized_add(a_tensor, b_tensor):
+    """
+    This kernel performs element-wise addition of two input tensors.
+
+    Parameters:
+    a_tensor (ndarray): First input tensor.
+    b_tensor (ndarray): Second input tensor.
+
+    Returns:
+    result (ndarray): Output tensor containing the element-wise sum of a_tensor and b_tensor.
+    """
+    # Initialize the result tensor with the same shape and dtype as the input tensors
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensors from HBM
+    a_tile = nl.load(a_tensor)
+    b_tile = nl.load(b_tensor)
+    
+    # Perform element-wise addition using NKI's add function
+    dummy_result = nl.add(a_tile, b_tile)
+    
+    # Store the result back to HBM
+    nl.store(result, dummy_result)
+
+    return result
+```
+
+### Explanation and Usage
+
+1. **Initialization**:
+   - The result tensor is created with the same shape and data type as the input tensors, utilizing `nl.ndarray` and specifying the `shared_hbm` buffer.
+
+2. **Loading Tensors**:
+   - Input tensors `a_tensor` and `b_tensor` are loaded into on-chip memory using `nl.load()`.
+
+3. **Element-wise Addition**:
+   - The addition operation is performed using `nl.add()`, which handles the element-wise addition efficiently.
+
+4. **Storing the Result**:
+   - The resulting tensor is stored back into device memory (HBM) using `nl.store()`.
+
+5. **Return Statement**:
+   - Finally, the function returns the `result` tensor.
+
+### Performance Considerations
+- The kernel uses efficient NKI APIs that are optimized for the underlying hardware, ensuring good performance.
+- Using shared HBM for storing results allows for efficient memory management.
+
+### Example Usage
+
+You can call this kernel with two appropriately shaped NumPy arrays like so:
+
+```python
+import numpy as np
+
+# Sample input tensors
+a = np.random.rand(128, 512).astype(np.float32)
+b = np.random.rand(128, 512).astype(np.float32)
+
+# Assuming a_tensor and b_tensor are allocated in HBM
+result = nki_vectorized_add(a, b)
+```
+
+Make sure to adapt the shapes and data types according to your application needs. This kernel is modular and can be easily modified to accommodate different types or shapes of inputs as necessary.

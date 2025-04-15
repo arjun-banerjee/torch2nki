@@ -1,0 +1,67 @@
+Here is a well-structured and optimized NKI kernel for performing element-wise subtraction of two tensors using the AWS Neural Kernel Interface (NKI). This implementation follows the guidelines provided, including proper initialization, error handling, and memory management.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_subtraction(a_tensor, b_tensor):
+    """
+    Performs element-wise subtraction of two tensors.
+
+    Parameters:
+    a_tensor: The first input tensor (on HBM).
+    b_tensor: The second input tensor (on HBM).
+
+    Returns:
+    result: A tensor containing the result of a_tensor - b_tensor (on HBM).
+    """
+    # Ensure both tensors have compatible shapes
+    if a_tensor.shape != b_tensor.shape:
+        raise ValueError("Input tensors must have the same shape")
+
+    # Initialize the result array in the shared HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+    # Load both tensors into SBUF
+    a_tile = nl.load(a_tensor)
+    b_tile = nl.load(b_tensor)
+
+    # Perform element-wise subtraction using NKI's subtract function
+    dummy_result = nl.subtract(a_tile, b_tile)
+
+    # Store the result back into HBM
+    nl.store(result, dummy_result)
+
+    return result
+```
+
+### Explanation of the Code:
+1. **Imports**:
+   - The kernel imports necessary components from the `neuronxcc` library, including NKI and the language API.
+
+2. **Function Definition**:
+   - The function `nki_subtraction` is decorated with `@nki.jit`, which compiles the function for execution on the target architecture.
+
+3. **Input Validation**:
+   - The function checks that the shapes of the input tensors `a_tensor` and `b_tensor` are the same. If they are not, a `ValueError` is raised.
+
+4. **Result Initialization**:
+   - The result tensor is initialized using `nl.ndarray`, specifying the shape and data type of the input tensor. The buffer is set to `nl.shared_hbm` to store the result in shared High Bandwidth Memory.
+
+5. **Loading Inputs**:
+   - Both input tensors are loaded into the scratchpad memory (SBUF) using `nl.load`.
+
+6. **Element-wise Subtraction**:
+   - The element-wise subtraction is performed using the NKI `nl.subtract` function.
+
+7. **Storing the Result**:
+   - The result from the subtraction is stored back into HBM using `nl.store`.
+
+8. **Return Statement**:
+   - Finally, the result tensor is returned.
+
+### Usage
+To use this kernel, ensure the input tensors `a_tensor` and `b_tensor` are properly defined and located in High Bandwidth Memory (HBM). Call `nki_subtraction(a_tensor, b_tensor)` to get the result tensor.
+
+This implementation adheres to all specified guidelines and best practices for efficiency, correctness, and maintainability.

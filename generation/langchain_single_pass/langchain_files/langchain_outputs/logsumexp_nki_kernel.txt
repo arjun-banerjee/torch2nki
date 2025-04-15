@@ -1,0 +1,86 @@
+***I will implement a logsumexp kernel that efficiently processes tensor input along the last dimension using tiling for large tensors and NKI's numerical functions. The implementation will find max values for stability, subtract them, compute exponentials, sum them, take logarithm, and add the max values back.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_logsumexp(a_tensor, dim=-1):
+    # Handle default case (dim=-1) and negative dimensions
+    ndim = len(a_tensor.shape)
+    if dim < 0:
+        dim = ndim + dim
+    
+    # We only support reduction along the last dimension for now
+    if dim != ndim - 1:
+        raise ValueError("Currently only supports reduction along the last dimension")
+    
+    # Get dimensions
+    if ndim == 1:
+        # For 1D tensor, reshape to 2D for consistent processing
+        sz_p = 1
+        sz_f = a_tensor.shape[0]
+        result_shape = ()  # scalar result
+    else:
+        # For N-D tensor, we'll process as a 2D tensor
+        # by collapsing all but the last dimension
+        sz_p = 1
+        for i in range(ndim - 1):
+            sz_p *= a_tensor.shape[i]
+        sz_f = a_tensor.shape[-1]
+        result_shape = a_tensor.shape[:-1]
+    
+    # Initialize result array
+    result = nl.ndarray(result_shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed
+    trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+    
+    # Process the tensor in tiles
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for the current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+        i_p_mask = i_p < sz_p
+        
+        # For 1D tensor (scalar result)
+        if ndim == 1:
+            # Load the entire tensor
+            i_f = nl.arange(sz_f)
+            x_tile = nl.load(a_tensor[i_f], mask=(i_f < sz_f))
+            
+            # Find maximum for numerical stability
+            max_val = nl.max(x_tile)
+            
+            # Subtract max and compute exp
+            shifted_x = nl.exp(nl.subtract(x_tile, max_val))
+            
+            # Sum the exp values
+            sum_exp = nl.sum(shifted_x, axis=0)
+            
+            # Compute final result: log(sum_exp) + max_val
+            out_tile = nl.add(nl.log(sum_exp), max_val)
+            
+            # Store result (scalar)
+            nl.store(result, value=out_tile)
+            
+        else:
+            # For N-D tensors
+            i_f = nl.arange(sz_f)[None, :]
+            
+            # Reshape input tensor to 2D for processing
+            if ndim == 2:
+                # Already 2D, just load directly
+                x_tile = nl.load(a_tensor[i_p[:, None], i_f], mask=(i_p[:, None] < sz_p))
+            else:
+                # Need to map flattened i_p back to original indices (implementation simplification)
+                # This is a simplification - in practice you'd need to calculate proper indices
+                x_tile = nl.load(a_tensor.reshape((sz_p, sz_f))[i_p[:, None], i_f], mask=(i_p[:, None] < sz_p))
+            
+            # Find maximum along the last dimension for numerical stability
+            max_vals = nl.max(x_tile, axis=1, keepdims=True)
+            
+            # Subtract max and compute exp
+            shifted_x = nl.exp(nl.subtract(x_tile, max_vals))
+            
+            # Sum the exp

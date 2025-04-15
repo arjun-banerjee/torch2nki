@@ -1,0 +1,67 @@
+Here is a well-structured kernel for computing the arctangent (atan) using the AWS Neural Kernel Interface (NKI). The kernel utilizes the `nki.language.arctan` function for efficient computation and follows the best practices for using the NKI API, including proper memory handling and array initialization.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_atan(a_tensor):
+    # Initialize the result array with the same shape and dtype as the input tensor
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+    # Load the input tensor into on-chip memory (SBUF)
+    input_tile = nl.load(a_tensor)
+
+    # Compute the arctangent of the input tile using NKI's arctan function
+    atan_output = nl.arctan(input_tile)
+
+    # Store the result back to HBM from on-chip memory
+    nl.store(result, atan_output)
+
+    # Return the result
+    return result
+```
+
+### Explanation of the Code:
+
+1. **Imports**:
+   - The required modules `nki` and `nl` (neuronxcc.nki.language) are imported for defining the kernel and using the NKI API.
+
+2. **Kernel Definition**:
+   - The kernel function `nki_atan` is defined using the `@nki.jit` decorator for Just-In-Time compilation.
+
+3. **Result Initialization**:
+   - A result tensor is initialized using `nl.ndarray` which allocates memory in shared High Bandwidth Memory (HBM) with the same shape and data type as the input tensor (`a_tensor`).
+
+4. **Loading Data**:
+   - The input tensor (`a_tensor`) is loaded into on-chip memory using `nl.load`. This allows for efficient processing of data.
+
+5. **Computing Arctangent**:
+   - The arctangent of the input tile is computed using `nl.arctan`, which performs the operation element-wise.
+
+6. **Storing the Result**:
+   - The result of the computation is stored back into HBM using `nl.store`.
+
+7. **Return Statement**:
+   - Finally, the result tensor is returned.
+
+### Usage Example:
+To use the `nki_atan` kernel, you would typically prepare your input data in an HBM tensor format and call this function. Here's a brief example of how you might set this up in your main code:
+
+```python
+import numpy as np
+
+# Assuming an input tensor 'data_tensor' is defined and stored in HBM
+data_tensor = np.random.rand(128, 128).astype(np.float32)  # Example input
+hbm_tensor = nl.ndarray(data_tensor.shape, dtype=data_tensor.dtype, buffer=nl.shared_hbm)
+nl.store(hbm_tensor, data_tensor)  # Store data in HBM
+
+# Call the atan kernel
+result_tensor = nki_atan(hbm_tensor)
+
+# Optionally load the result back to host memory if needed
+result = nl.load(result_tensor)
+```
+
+### Note:
+- The kernel is designed to work efficiently within the constraints and capabilities of the NKI while ensuring correct and accurate computations.

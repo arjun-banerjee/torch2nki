@@ -1,0 +1,90 @@
+I'll create an efficient NKI kernel implementation of topk that handles tensors of any size. The implementation will use tiling to respect hardware limitations and will properly initialize and return the result array.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_topk(a_tensor, k):
+    """
+    Return the top k largest elements from a tensor.
+    
+    Parameters:
+    - a_tensor: Input tensor of any shape
+    - k: Number of top elements to return
+    
+    Returns:
+    - Tensor containing the top k elements from the input tensor
+    """
+    # Get the shape of the input tensor
+    input_shape = a_tensor.shape
+    
+    # Create the shape for the output tensor (same as input shape with an added dimension of size k)
+    output_shape = input_shape + (k,)
+    
+    # Initialize the result array
+    result = nl.ndarray(output_shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the total number of elements in the input tensor
+    total_elements = 1
+    for dim in input_shape:
+        total_elements *= dim
+    
+    # Calculate the number of tiles needed
+    trip_count = math.ceil(total_elements / nl.tile_size.pmax)
+    
+    # Process the tensor in chunks that respect hardware limitations
+    for batch_idx in nl.affine_range(trip_count):
+        # Calculate the starting index for this batch
+        start_idx = batch_idx * nl.tile_size.pmax
+        
+        # Create indices for the current batch
+        batch_indices = start_idx + nl.arange(min(nl.tile_size.pmax, total_elements - start_idx))
+        
+        # Load the current batch of values
+        batch_values = nl.load(a_tensor.flatten()[batch_indices], 
+                               mask=(batch_indices < total_elements))
+        
+        # Initialize a temporary buffer to store the top k values for this batch
+        temp_topk = nl.zeros((k,), dtype=a_tensor.dtype, buffer=nl.sbuf)
+        
+        # Fill the temporary buffer with the minimum possible value
+        # For simplicity, assuming we're working with numerical types
+        # For float types, we use a very negative number
+        min_val = -1e30 if nl.float16 == a_tensor.dtype or nl.float32 == a_tensor.dtype or nl.bfloat16 == a_tensor.dtype else -2**30
+        
+        for i in nl.affine_range(k):
+            temp_topk[i] = min_val
+        
+        # Process each element in the batch
+        for i in nl.affine_range(min(nl.tile_size.pmax, total_elements - start_idx)):
+            current_val = batch_values[i]
+            
+            # Check if the current value should be in the top k
+            for j in nl.affine_range(k):
+                # If the current value is larger than the current top k element
+                comparison = current_val > temp_topk[j]
+                
+                if comparison:
+                    # Shift elements down to make room for the new value
+                    for m in nl.affine_range(k-1, j, -1):
+                        temp_topk[m] = temp_topk[m-1]
+                    
+                    # Insert the current value at position j
+                    temp_topk[j] = current_val
+                    
+                    # Break the inner loop as we've placed the current value
+                    break
+        
+        # Reshape the input tensor for output indexing
+        flat_indices = nl.arange(total_elements)
+        reshaped_indices = flat_indices.reshape(input_shape)
+        
+        # Calculate the indices for this batch in the original tensor shape
+        batch_start = batch_idx * nl.tile_size.pmax
+        batch_end = min((batch_idx + 1) * nl.tile_size.pmax, total_elements)
+        
+        # Store the top k values for the current batch
+        for i in nl.affine_range(input_shape[0]):
+            

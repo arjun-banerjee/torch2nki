@@ -1,0 +1,8 @@
+Running NKI kernel simulation for cumsum...
+
+--- Results Comparison ---
+NKI output (first 5): [0.44024116 0.5463198  1.0521094  1.5275377  1.9122324 ]
+PyTorch output (first 5): [0.44024116 0.5463198  1.0521094  1.5275377  1.9122324 ]
+
+✅ SUCCESS: NKI and PyTorch outputs match!
+

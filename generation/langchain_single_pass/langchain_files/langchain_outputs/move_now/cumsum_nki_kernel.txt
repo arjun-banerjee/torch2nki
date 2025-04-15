@@ -1,0 +1,31 @@
+***Since nl.cumsum is not available, we need to implement cumsum manually by loading a slice of the input tensor, accumulating the sum in the sbuf buffer, and updating the running sum for each element in the tensor***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_cumsum(a_tensor):
+    # Initialize result tensor in HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input into sbuf
+    input_sbuf = nl.load(a_tensor)
+    
+    # Initialize running sum in sbuf
+    running_sum = nl.zeros_like(input_sbuf, buffer=nl.sbuf)
+    
+    # Process first element
+    i_p = nl.arange(1)[:, None]
+    running_sum[0:1] = input_sbuf[0:1]
+    
+    # Calculate cumulative sum
+    for i in nl.affine_range(1, a_tensor.shape[0]):
+        i_p = nl.arange(1)[:, None]
+        running_sum[i:i+1] = nl.add(running_sum[i-1:i], input_sbuf[i:i+1])
+    
+    # Store result back to HBM
+    nl.store(result, running_sum)
+    
+    return result
+```

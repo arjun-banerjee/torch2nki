@@ -1,0 +1,60 @@
+***I will implement an NKI kernel for the 'any' operation that checks if any element in a tensor is True. I'll use proper tiling to handle tensors of all sizes and will return a boolean scalar indicating whether any element in the input tensor is True.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_any(a_tensor):
+    # Initialize a scalar result to track if any element is True
+    any_true = nl.zeros((), dtype=nl.bool_, buffer=nl.sbuf)
+    
+    # Get the total number of elements in the tensor
+    total_size = 1
+    for dim in a_tensor.shape:
+        total_size *= dim
+    
+    # Handle empty tensor case
+    if total_size == 0:
+        return any_true
+    
+    # Handle flat tensors or flattened multi-dimensional tensors
+    # Calculate how many tiles we need
+    tile_size = nl.tile_size.pmax
+    trip_count = math.ceil(total_size / tile_size)
+    
+    # Process the tensor in tiles
+    for p in nl.affine_range(trip_count):
+        # Calculate the start and end indices for this tile
+        start_idx = p * tile_size
+        
+        # Create indices for the current tile (flattened)
+        indices = start_idx + nl.arange(tile_size)
+        
+        # Create a mask for valid indices
+        mask = indices < total_size
+        
+        # Flatten the tensor and load the current tile
+        flat_tensor = a_tensor.reshape((-1,))
+        tile_data = nl.load(flat_tensor[indices], mask=mask)
+        
+        # Convert to boolean if needed
+        if tile_data.dtype != nl.bool_:
+            tile_data = nl.cast(tile_data, dtype=nl.bool_)
+        
+        # Check if any element in the tile is True
+        # First compute a reduction within the tile
+        tile_any = nl.zeros((), dtype=nl.bool_, buffer=nl.sbuf)
+        for i in nl.affine_range(min(tile_size, total_size - start_idx)):
+            tile_any = nl.logical_or(tile_any, tile_data[i])
+        
+        # Update the overall result
+        any_true = nl.logical_or(any_true, tile_any)
+        
+        # Early exit if we found a True value
+        if any_true:
+            break
+    
+    return any_true
+```

@@ -1,0 +1,65 @@
+***I will implement a round function that handles different tensor shapes and decimal places by performing the standard rounding algorithm (adding 0.5 for positive numbers, subtracting 0.5 for negative numbers before truncation). I'll use nl.where() for conditional logic and proper tiling to handle large tensors.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_round(a_tensor, decimals=0):
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed
+    if len(a_tensor.shape) == 1:
+        sz_p = a_tensor.shape[0]
+        sz_f = 1
+        # Create a reshape view of the 1D tensor as 2D for processing
+        a_tensor_view = a_tensor.reshape(sz_p, sz_f)
+    else:
+        sz_p, sz_f = a_tensor.shape
+        a_tensor_view = a_tensor
+    
+    # Calculate multiplier for decimal places
+    multiplier = 10.0 ** decimals
+    inv_multiplier = 1.0 / multiplier
+    
+    # Generate the free dimension index array
+    i_f = nl.arange(sz_f)[None, :]
+    
+    # Process the tensor in tiles to respect hardware limitations
+    trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for the current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+        
+        # Load input data from external memory to on-chip memory
+        # Only load up to the actual size of the tensor
+        x_tile = nl.load(a_tensor_view[i_p, i_f], mask=(i_p < sz_p))
+        
+        # Scale by multiplier for decimal handling
+        x_scaled = nl.multiply(x_tile, multiplier)
+        
+        # Check if values are positive or negative
+        is_positive = nl.greater_equal(x_scaled, 0.0)
+        
+        # Add 0.5 for positive numbers, subtract 0.5 for negative numbers
+        x_adjusted = nl.where(is_positive, 
+                             nl.add(x_scaled, 0.5),
+                             nl.add(x_scaled, -0.5))
+        
+        # Truncate to integer (floor for positive numbers, ceil for negative)
+        x_truncated = nl.floor(x_adjusted)
+        
+        # Scale back by dividing by multiplier
+        out_tile = nl.multiply(x_truncated, inv_multiplier)
+        
+        # Store the results back to external memory
+        if len(a_tensor.shape) == 1:
+            # For 1D tensor, reshape the result back to 1D
+            nl.store(result[i_p[:, 0]], value=out_tile[:, 0], mask=(i_p[:, 0] < sz_p))
+        else:
+            nl.store(result[i_p, i_f], value=out_tile, mask=(i_p < sz_p))
+    
+    return result
+```

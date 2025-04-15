@@ -1,0 +1,22 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_cosh(input_tensor):
+    # Initialize an output tensor
+    result = nl.ndarray(input_tensor.shape, dtype=input_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Load input tensor into SBUF
+    input_tile = nl.load(input_tensor)
+
+    # Calculate exp(x) and exp(-x) using nl.negative for the negative operation
+    exp_input = nl.exp(input_tile)  # e^x
+    exp_neg_input = nl.exp(nl.negative(input_tile))  # e^-x
+
+    # Compute cosh(x) = (e^x + e^-x) / 2
+    cosh_output = (exp_input + exp_neg_input) / 2
+
+    # Store result back to HBM
+    nl.store(result, cosh_output)
+
+    return result

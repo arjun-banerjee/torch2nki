@@ -1,0 +1,79 @@
+Here's a well-structured and maintainable NKI kernel for element-wise multiplication of two tensors using AWS Neural Kernel Interface (NKI). The implementation adheres to the guidelines you've provided, including proper use of NKI API functions and handling of input/output memory.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_mul(a_tensor, b_tensor):
+    """
+    This kernel performs element-wise multiplication of two input tensors.
+    
+    Parameters:
+    - a_tensor: Input tensor with shape (N, M)
+    - b_tensor: Input tensor with shape (N, M)
+    
+    Returns:
+    - result: A new tensor containing the element-wise products of a_tensor and b_tensor.
+    """
+    # Ensure both input tensors have the same shape
+    if a_tensor.shape != b_tensor.shape:
+        raise ValueError("Both input tensors must have the same shape")
+
+    # Initialize the result array in HBM
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+
+    # Load input tiles from HBM to on-chip memory
+    a_tile = nl.load(a_tensor)
+    b_tile = nl.load(b_tensor)
+
+    # Perform element-wise multiplication
+    dummy_result = nl.multiply(a_tile, b_tile)
+
+    # Store the result back to HBM
+    nl.store(result, dummy_result)
+
+    return result
+```
+
+### Documentation and Usage
+
+#### Description
+The `nki_mul` function multiplies two input tensors element-wise and stores the result in a new tensor allocated in high-bandwidth memory (HBM). It uses NKI API functions for efficient memory operations and supports tensors of the same shape.
+
+#### Parameters
+- `a_tensor`: The first input tensor (expected to be a 2D tensor).
+- `b_tensor`: The second input tensor (must have the same shape as `a_tensor`).
+
+#### Returns
+- `result`: A new tensor of the same shape and data type as the input tensors, containing the element-wise products.
+
+### Example Usage
+Here's how you can call the `nki_mul` function:
+
+```python
+import numpy as np
+
+# Example input tensors
+a = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
+b = np.array([[7, 8, 9], [10, 11, 12]], dtype=np.float32)
+
+# Ensure tensors are in the correct format for NKI
+a_tensor = nl.ndarray(a.shape, dtype=a.dtype, buffer=nl.shared_hbm)
+b_tensor = nl.ndarray(b.shape, dtype=b.dtype, buffer=nl.shared_hbm)
+
+# Load the tensors to HBM (this part is assumed based on the context)
+nl.store(a_tensor, a)
+nl.store(b_tensor, b)
+
+# Call the NKI kernel
+result_tensor = nki_mul(a_tensor, b_tensor)
+
+# To retrieve the result back to NumPy for further processing, you would need to load from HBM.
+result = nl.load(result_tensor)
+
+print(result)  # Output should be the element-wise multiplication of a and b
+```
+
+### Summary
+This kernel efficiently multiplies two tensors using the NKI framework, ensuring that all operations are conducted in a manner consistent with best practices for performance and correctness. Ensure that input tensors are in the appropriate HBM format before invoking the kernel.
