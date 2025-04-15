@@ -1,3 +1,0 @@
-Checking correctness of truncation operation...
-NKI and Torch match!
-

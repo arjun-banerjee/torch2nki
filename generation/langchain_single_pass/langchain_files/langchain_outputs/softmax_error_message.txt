@@ -1,3 +1,0 @@
-Checking correctness of softmax operation...
-NKI and Torch match!
-
