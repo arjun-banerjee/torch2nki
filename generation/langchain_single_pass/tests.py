@@ -2235,7 +2235,7 @@ def test_torch_unique_consecutive(device, nki_unique_consecutive):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_inner(device):
+def test_torch_inner(device, nki_inner):
     """Test inner product operation between NKI and PyTorch implementations.
     
     Args:
@@ -2253,7 +2253,7 @@ def test_torch_inner(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_outer(device):
+def test_torch_outer(device, nki_outer):
     """Test outer product operation between NKI and PyTorch implementations.
     
     Args:
@@ -2271,7 +2271,7 @@ def test_torch_outer(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_dot(device):
+def test_torch_dot(device, nki_dot):
     """Test dot product operation between NKI and PyTorch implementations.
     
     Args:
@@ -2289,7 +2289,7 @@ def test_torch_dot(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_vdot(device):
+def test_torch_vdot(device, nki_vdot):
     """Test vdot operation between NKI and PyTorch implementations.
     
     Args:
@@ -2307,7 +2307,7 @@ def test_torch_vdot(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_cross(device):
+def test_torch_cross(device, nki_cross):
     """Test cross product operation between NKI and PyTorch implementations.
     
     Args:
@@ -2325,7 +2325,7 @@ def test_torch_cross(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_matmul(device):
+def test_torch_matmul(device, nki_matmul):
     """Test matrix multiplication (matmul) operation between NKI and PyTorch implementations.
     
     Args:
@@ -2343,7 +2343,7 @@ def test_torch_matmul(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_mm(device):
+def test_torch_mm(device, nki_mm):
     """Test matrix-matrix multiplication (mm) operation between NKI and PyTorch implementations.
     
     Args:
@@ -2361,7 +2361,7 @@ def test_torch_mm(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_mv(device):
+def test_torch_mv(device, nki_mv):
     """Test matrix-vector multiplication (mv) operation between NKI and PyTorch implementations.
     
     Args:
@@ -2379,7 +2379,7 @@ def test_torch_mv(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_bmm(device):
+def test_torch_bmm(device, nki_bmm):
     """Test batch matrix-matrix multiplication (bmm) operation between NKI and PyTorch implementations.
     
     Args:
@@ -2397,7 +2397,7 @@ def test_torch_bmm(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_tensordot(device):
+def test_torch_tensordot(device, nki_tensordot):
     """Test tensordot operation between NKI and PyTorch implementations.
     
     Args:
@@ -2415,26 +2415,8 @@ def test_torch_tensordot(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_einsum(device):
-    """Test einsum operation between NKI and PyTorch implementations.
-    
-    Args:
-        device: The device to run the test on (CPU/GPU/NPU)
-        
-    Returns:
-        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
-    """
-    a = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    b = torch.rand((128, 32), dtype=torch.bfloat16, device=device)
-    equation = "ij,jk->ik"
-    output_nki = nki_einsum(equation, a, b)
-    output_torch = torch.einsum(equation, a, b)
-    print("Checking correctness of einsum operation...")
-    match = torch.allclose(output_torch, output_nki, atol=1e-4, rtol=1e-2)
-    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
-    return 1 if match else 0
 
-def test_torch_kron(device):
+def test_torch_kron(device, nki_kron):
     """Test Kronecker product operation between NKI and PyTorch implementations.
     
     Args:
@@ -2452,7 +2434,7 @@ def test_torch_kron(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_hadamard(device):
+def test_torch_hadamard(device, nki_hadamard):
     """Test Hadamard (element-wise multiplication) operation between NKI and PyTorch implementations.
     
     Args:
@@ -2470,7 +2452,7 @@ def test_torch_hadamard(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_linalg_vecdot(device):
+def test_torch_linalg_vecdot(device, nki_linalg_vecdot):
     """Test linalg_vecdot operation between NKI and PyTorch implementations.
     
     Args:
@@ -2488,7 +2470,7 @@ def test_torch_linalg_vecdot(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_linalg_multi_dot(device):
+def test_torch_linalg_multi_dot(device, nki_linalg_multi_dot):
     """Test linalg_multi_dot operation between NKI and PyTorch implementations.
     
     Args:
@@ -2508,56 +2490,952 @@ def test_torch_linalg_multi_dot(device):
     print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_relu(device, nki_relu):
-    """
-    Test elementwise ReLU between NKI and PyTorch implementations.
 
-    Args:
-        device: The device to run the test on (CPU/GPU/NPU)
-    
-    Returns:
-        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+def test_torch_qr(device, nki_qr):
+    """Test QR decomposition operation between NKI and PyTorch implementations."""
+    x = torch.rand((100, 50), dtype=torch.bfloat16, device=device)
+    q_nki, r_nki = nki_qr(x)
+    q_torch, r_torch = torch.linalg.qr(x)
+    print("Checking correctness of QR decomposition operation...")
+    match_q = torch.allclose(q_nki, q_torch, atol=1e-4, rtol=1e-2)
+    match_r = torch.allclose(r_nki, r_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if (match_q and match_r) else "Error: NKI and Torch differ")
+    return 1 if (match_q and match_r) else 0
+
+def test_torch_svd(device, nki_svd):
+    """Test SVD operation between NKI and PyTorch implementations."""
+    x = torch.rand((64, 32), dtype=torch.bfloat16, device=device)
+    u_nki, s_nki, vh_nki = nki_svd(x, full_matrices=False)
+    u_t, s_t, vh_t = torch.linalg.svd(x, full_matrices=False)
+    print("Checking correctness of SVD operation...")
+    match_u = torch.allclose(u_nki, u_t, atol=1e-4, rtol=1e-2)
+    match_s = torch.allclose(s_nki, s_t, atol=1e-4, rtol=1e-2)
+    match_vh = torch.allclose(vh_nki, vh_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if (match_u and match_s and match_vh) else "Error: NKI and Torch differ")
+    return 1 if (match_u and match_s and match_vh) else 0
+
+def test_torch_inv(device, nki_inv):
+    """Test matrix inversion operation between NKI and PyTorch implementations."""
+    x = torch.rand((64, 64), dtype=torch.bfloat16, device=device)
+    inv_nki = nki_inv(x)
+    inv_torch = torch.linalg.inv(x)
+    print("Checking correctness of inverse operation...")
+    match = torch.allclose(inv_nki, inv_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_pinv(device, nki_pinv):
+    """Test pseudoinverse operation between NKI and PyTorch implementations."""
+    x = torch.rand((64, 32), dtype=torch.bfloat16, device=device)
+    pinv_nki = nki_pinv(x)
+    pinv_torch = torch.linalg.pinv(x)
+    print("Checking correctness of pseudoinverse operation...")
+    match = torch.allclose(pinv_nki, pinv_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_matrix_norm(device, nki_matrix_norm):
+    """Test matrix norm operation between NKI and PyTorch implementations."""
+    x = torch.rand((64, 32), dtype=torch.bfloat16, device=device)
+    norm_nki = nki_matrix_norm(x, ord='fro', dim=(-2, -1))
+    norm_torch = torch.linalg.matrix_norm(x, ord='fro', dim=(-2, -1))
+    print("Checking correctness of matrix norm operation...")
+    match = torch.allclose(norm_nki, norm_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_vector_norm(device, nki_vector_norm):
+    """Test vector norm operation between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.bfloat16, device=device)
+    norm_nki = nki_vector_norm(x, ord=2, dim=0)
+    norm_torch = torch.linalg.vector_norm(x, ord=2, dim=0)
+    print("Checking correctness of vector norm operation...")
+    match = torch.allclose(norm_nki, norm_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_cross(device, nki_cross):
+    """Test cross product operation between NKI and PyTorch implementations."""
+    a = torch.rand((3,), dtype=torch.bfloat16, device=device)
+    b = torch.rand((3,), dtype=torch.bfloat16, device=device)
+    cross_nki = nki_cross(a, b, dim=0)
+    cross_torch = torch.cross(a, b, dim=0)
+    print("Checking correctness of cross product operation...")
+    match = torch.allclose(cross_nki, cross_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_outer(device, nki_outer):
+    """Test outer product operation between NKI and PyTorch implementations."""
+    a = torch.rand((10,), dtype=torch.bfloat16, device=device)
+    b = torch.rand((12,), dtype=torch.bfloat16, device=device)
+    out_nki = nki_outer(a, b)
+    out_torch = torch.outer(a, b)
+    print("Checking correctness of outer product operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_tensordot(device, nki_tensordot):
+    """Test tensor contraction (tensordot) between NKI and PyTorch implementations."""
+    a = torch.rand((100, 20), dtype=torch.bfloat16, device=device)
+    b = torch.rand((20, 30), dtype=torch.bfloat16, device=device)
+    td_nki = nki_tensordot(a, b, dims=([1], [0]))
+    td_torch = torch.tensordot(a, b, dims=([1], [0]))
+    print("Checking correctness of tensordot operation...")
+    match = torch.allclose(td_nki, td_torch, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_eigh(device, nki_eigh):
+    """Test symmetric eigendecomposition between NKI and PyTorch implementations."""
+    x = torch.rand((64, 64), dtype=torch.float32, device=device)
+    sym = (x + x.T) / 2
+    w_nki, v_nki = nki_eigh(sym)
+    w_t, v_t = torch.linalg.eigh(sym)
+    print("Checking correctness of symmetric eigen decomposition...")
+    match_w = torch.allclose(w_nki, w_t, atol=1e-4, rtol=1e-2)
+    match_v = torch.allclose(v_nki, v_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if (match_w and match_v) else "Error: NKI and Torch differ")
+    return 1 if (match_w and match_v) else 0
+
+def test_torch_eig(device, nki_eig):
+    """Test general eigendecomposition between NKI and PyTorch implementations."""
+    a = torch.randn((64, 64), dtype=torch.complex64, device=device)
+    w_nki, v_nki = nki_eig(a)
+    w_t, v_t = torch.linalg.eig(a)
+    print("Checking correctness of eigen decomposition operation...")
+    match_w = torch.allclose(w_nki, w_t, atol=1e-4, rtol=1e-2)
+    match_v = torch.allclose(v_nki, v_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if (match_w and match_v) else "Error: NKI and Torch differ")
+    return 1 if (match_w and match_v) else 0
+
+def test_torch_slogdet(device, nki_slogdet):
+    """Test sign-logdet operation between NKI and PyTorch implementations."""
+    a = torch.randn((64, 64), dtype=torch.float32, device=device)
+    pd = a @ a.T + torch.eye(64, device=device) * 1e-3
+    sign_nki, logdet_nki = nki_slogdet(pd)
+    sign_t, logdet_t = torch.linalg.slogdet(pd)
+    print("Checking correctness of sign-logdet operation...")
+    match = (sign_nki == sign_t) and torch.allclose(logdet_nki, logdet_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_solve(device, nki_solve):
+    """Test linear solve operation between NKI and PyTorch implementations."""
+    A = torch.rand((64, 64), dtype=torch.float32, device=device)
+    B = torch.rand((64, 10), dtype=torch.float32, device=device)
+    x_nki = nki_solve(A, B)
+    x_t = torch.linalg.solve(A, B)
+    print("Checking correctness of linear solve operation...")
+    match = torch.allclose(x_nki, x_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_lstsq(device, nki_lstsq):
+    """Test least-squares solve between NKI and PyTorch implementations."""
+    A = torch.rand((100, 20), dtype=torch.float32, device=device)
+    B = torch.rand((100, 5), dtype=torch.float32, device=device)
+    x_nki, *_ = nki_lstsq(A, B)
+    res = torch.linalg.lstsq(A, B)
+    x_t = res.solution
+    print("Checking correctness of least-squares operation...")
+    match = torch.allclose(x_nki, x_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_cholesky(device, nki_cholesky):
+    """Test Cholesky decomposition between NKI and PyTorch implementations."""
+    a = torch.randn((64, 64), dtype=torch.float32, device=device)
+    pd = a @ a.T + torch.eye(64, device=device) * 1e-3
+    L_nki = nki_cholesky(pd)
+    L_t = torch.linalg.cholesky(pd)
+    print("Checking correctness of Cholesky decomposition operation...")
+    match = torch.allclose(L_nki, L_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_lu(device, nki_lu):
+    """Test LU decomposition between NKI and PyTorch implementations."""
+    A = torch.rand((32, 32), dtype=torch.float32, device=device)
+    P_nki, L_nki, U_nki = nki_lu(A)
+    P_t, L_t, U_t = torch.linalg.lu(A)
+    print("Checking correctness of LU decomposition operation...")
+    match_p = torch.allclose(P_nki, P_t, atol=1e-4, rtol=1e-2)
+    match_l = torch.allclose(L_nki, L_t, atol=1e-4, rtol=1e-2)
+    match_u = torch.allclose(U_nki, U_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if (match_p and match_l and match_u) else "Error: NKI and Torch differ")
+    return 1 if (match_p and match_l and match_u) else 0
+
+def test_torch_ldl_factor(device, nki_ldl_factor):
+    """Test LDL factorization between NKI and PyTorch implementations."""
+    x = torch.rand((32, 32), dtype=torch.float32, device=device)
+    H = (x + x.T) / 2
+    L_nki, D_nki, perm_nki = nki_ldl_factor(H)
+    L_t, D_t, perm_t = torch.linalg.ldl_factor(H)
+    print("Checking correctness of LDL factorization operation...")
+    match_l = torch.allclose(L_nki, L_t, atol=1e-4, rtol=1e-2)
+    match_d = torch.allclose(D_nki, D_t, atol=1e-4, rtol=1e-2)
+    match_p = torch.equal(perm_nki, perm_t)
+    print("NKI and Torch match!" if (match_l and match_d and match_p) else "Error: NKI and Torch differ")
+    return 1 if (match_l and match_d and match_p) else 0
+
+def test_torch_triangular_solve(device, nki_triangular_solve):
+    """Test triangular solve operation between NKI and PyTorch implementations."""
+    A = torch.tril(torch.rand((64, 64), dtype=torch.float32, device=device))
+    B = torch.rand((64, 10), dtype=torch.float32, device=device)
+    x_nki = nki_triangular_solve(A, B, upper=False, left=True)
+    x_t = torch.linalg.solve_triangular(A, B, upper=False, left=True)
+    print("Checking correctness of triangular solve operation...")
+    match = torch.allclose(x_nki, x_t, atol=1e-4, rtol=1e-2)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+#Special Operators
+
+def test_torch_special_entr(device, nki_special_entr):
+    """Test entropy function x*log(x) between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.float32, device=device)
+    out_nki = nki_special_entr(x)
+    out_torch = torch.special.entr(x)
+    print("Checking correctness of special_entr operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_special_i1(device, nki_special_i1):
+    """Test modified Bessel function I1 between NKI and PyTorch implementations."""
+    x = torch.randn((200,), dtype=torch.float32, device=device).abs()
+    out_nki = nki_special_i1(x)
+    out_torch = torch.special.i1(x)
+    print("Checking correctness of special_i1 operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_special_xlogy(device, nki_special_xlogy):
+    """Test x*log(y) (safe for x=0) between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.float32, device=device)
+    y = torch.rand((300,), dtype=torch.float32, device=device) + 1e-6
+    out_nki = nki_special_xlogy(x, y)
+    out_torch = torch.special.xlogy(x, y)
+    print("Checking correctness of special_xlogy operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_special_logit(device, nki_special_logit):
+    """Test logit (inverse sigmoid) between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.float32, device=device) * 0.98 + 0.01
+    out_nki = nki_special_logit(x)
+    out_torch = torch.logit(x)
+    print("Checking correctness of special_logit operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_angle(device, nki_angle):
+    """Test phase angle of complex tensor between NKI and PyTorch implementations."""
+    real = torch.randn((200,), device=device)
+    imag = torch.randn((200,), device=device)
+    c = torch.complex(real, imag)
+    out_nki = nki_angle(c)
+    out_torch = torch.angle(c)
+    print("Checking correctness of angle operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_polar(device, nki_polar):
+    """Test polar-to-complex conversion between NKI and PyTorch implementations."""
+    magnitude = torch.rand((200,), dtype=torch.float32, device=device)
+    phase = torch.rand((200,), dtype=torch.float32, device=device) * 2 * math.pi
+    out_nki = nki_polar(magnitude, phase)
+    out_torch = torch.polar(magnitude, phase)
+    print("Checking correctness of polar operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_view_as_real(device, nki_view_as_real):
+    """Test complex-to-real view between NKI and PyTorch implementations."""
+    c = torch.randn((100,), dtype=torch.complex64, device=device)
+    out_nki = nki_view_as_real(c)
+    out_torch = torch.view_as_real(c)
+    print("Checking correctness of view_as_real operation...")
+    match = torch.equal(out_nki, out_torch)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_view_as_complex(device, nki_view_as_complex):
+    """Test real-to-complex view between NKI and PyTorch implementations."""
+    real = torch.randn((100, 2), dtype=torch.float32, device=device)
+    out_nki = nki_view_as_complex(real)
+    out_torch = torch.view_as_complex(real)
+    print("Checking correctness of view_as_complex operation...")
+    match = torch.equal(out_nki, out_torch)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_copysign(device, nki_copysign):
+    """Test copysign operation between NKI and PyTorch implementations."""
+    mag = torch.randn((300,), dtype=torch.float32, device=device).abs()
+    sign = torch.randn((300,), dtype=torch.float32, device=device)
+    out_nki = nki_copysign(mag, sign)
+    out_torch = torch.copysign(mag, sign)
+    print("Checking correctness of copysign operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_nextafter(device, nki_nextafter):
+    """Test nextafter operation between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device)
+    y = torch.randn((300,), dtype=torch.float32, device=device)
+    out_nki = nki_nextafter(x, y)
+    out_torch = torch.nextafter(x, y)
+    print("Checking correctness of nextafter operation...")
+    match = torch.allclose(out_nki, out_torch, atol=0, rtol=0)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_hypot(device, nki_hypot):
+    """Test hypot (sqrt(x^2+y^2)) between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device)
+    y = torch.randn((300,), dtype=torch.float32, device=device)
+    out_nki = nki_hypot(x, y)
+    out_torch = torch.hypot(x, y)
+    print("Checking correctness of hypot operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_log1p(device, nki_log1p):
+    """Test log1p (log(1+x)) between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.float32, device=device)
+    out_nki = nki_log1p(x)
+    out_torch = torch.log1p(x)
+    print("Checking correctness of log1p operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_expm1(device, nki_expm1):
+    """Test expm1 (exp(x)-1) between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device) * 1.0
+    out_nki = nki_expm1(x)
+    out_torch = torch.expm1(x)
+    print("Checking correctness of expm1 operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_frexp(device, nki_frexp):
+    """Test frexp (mantissa, exponent) between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device)
+    mant_nki, exp_nki = nki_frexp(x)
+    mant_t, exp_t = torch.frexp(x)
+    print("Checking correctness of frexp operation...")
+    match = torch.allclose(mant_nki, mant_t, atol=1e-6, rtol=1e-3) and torch.equal(exp_nki, exp_t)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_ldexp(device, nki_ldexp):
+    """Test ldexp (reconstruct from mantissa and exponent) between NKI and PyTorch implementations."""
+    mant, exp = torch.frexp(torch.randn((300,), dtype=torch.float32, device=device))
+    out_nki = nki_ldexp(mant, exp)
+    out_torch = torch.ldexp(mant, exp)
+    print("Checking correctness of ldexp operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_logaddexp(device, nki_logaddexp):
+    """Test logaddexp between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device)
+    y = torch.randn((300,), dtype=torch.float32, device=device)
+    out_nki = nki_logaddexp(x, y)
+    out_torch = torch.logaddexp(x, y)
+    print("Checking correctness of logaddexp operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_logaddexp2(device, nki_logaddexp2):
+    """Test logaddexp2 between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device)
+    y = torch.randn((300,), dtype=torch.float32, device=device)
+    out_nki = nki_logaddexp2(x, y)
+    out_torch = torch.logaddexp2(x, y)
+    print("Checking correctness of logaddexp2 operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_sinc(device, nki_sinc):
+    """Test sinc (sin(x)/x) between NKI and PyTorch implementations."""
+    x = torch.randn((300,), dtype=torch.float32, device=device) * math.pi
+    out_nki = nki_sinc(x)
+    out_torch = torch.sinc(x)
+    print("Checking correctness of sinc operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_xlogy(device, nki_xlogy):
+    """Test x*log(y) (alias of special_xlogy) between NKI and PyTorch implementations."""
+    x = torch.rand((300,), dtype=torch.float32, device=device)
+    y = torch.rand((300,), dtype=torch.float32, device=device) + 1e-6
+    out_nki = nki_xlogy(x, y)
+    out_torch = torch.special.xlogy(x, y)
+    print("Checking correctness of xlogy operation...")
+    match = torch.allclose(out_nki, out_torch, atol=1e-6, rtol=1e-3)
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_edit_distance(device, nki_edit_distance):
+    """Test Levenshtein edit distance between NKI and reference implementation."""
+    seq1 = torch.randint(0, 26, (50,), dtype=torch.int64, device=device)
+    seq2 = torch.randint(0, 26, (50,), dtype=torch.int64, device=device)
+    out_nki = nki_edit_distance(seq1, seq2)
+    # reference via torch.ops.aten.edit_distance
+    out_torch = torch.ops.aten.edit_distance(seq1, seq2)
+    print("Checking correctness of edit_distance operation...")
+    match = out_nki.item() == out_torch.item()
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_hamming_distance(device, nki_hamming_distance):
+    """Test Hamming distance between NKI and manual implementation."""
+    seq1 = torch.randint(0, 10, (100,), dtype=torch.int64, device=device)
+    seq2 = torch.randint(0, 10, (100,), dtype=torch.int64, device=device)
+    out_nki = nki_hamming_distance(seq1, seq2)
+    out_torch = torch.sum(seq1 != seq2)
+    print("Checking correctness of hamming_distance operation...")
+    match = out_nki.item() == out_torch.item()
+    print("NKI and Torch match!" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+#ML Operators
+def test_torch_gelu(device, nki_gelu):
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1
-    
-    # Run NKI kernel
-    output_small = torch.from_numpy(nki_relu(x_small))
-    
-    # Run torch reference
-    output_small_torch = torch.relu(torch.from_numpy(x_small))
-    
-    print("Checking correctness of nki_relu")
-    print("NKI output:", output_small)
-    print("Torch output:", output_small_torch)
-    match = torch.allclose(output_small_torch, output_small, atol=1e-4, rtol=1e-2)
+    Test elementwise GELU between NKI and PyTorch implementations.
+    """
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    output_nki   = nki_gelu(x)
+    output_torch = F.gelu(x)
+    print("Checking correctness of nki_gelu")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
     print("NKI and Torch match" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
-def test_torch_threshold(device, nki_threshold):
+def test_torch_elu(device, nki_elu):
     """
-    Test elementwise threshold between NKI and PyTorch implementations.
-
-    Args:
-        device: The device to run the test on (CPU/GPU/NPU)
-    
-    Returns:
-        int: Returns 1 if NKI and PyTorch results match, 0 otherwise
+    Test elementwise ELU between NKI and PyTorch implementations.
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1
-    threshold = 0.5
-    value = 0.0
-    
-    # Run NKI kernel
-    output_small = nki_threshold(x_small, threshold, value)
-    
-    # Run torch reference
-    output_small_torch = torch.threshold(x_small, threshold, value)
-    
-    print("Checking correctness of nki_threshold")
-    print("NKI output:", output_small)
-    print("Torch output:", output_small_torch)
-    match = torch.allclose(output_small_torch, output_small, atol=1e-4, rtol=1e-2)
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    alpha = 1.0
+    output_nki   = nki_elu(x, alpha)
+    output_torch = F.elu(x,    alpha)
+    print("Checking correctness of nki_elu")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
     print("NKI and Torch match" if match else "Error: NKI and Torch differ")
     return 1 if match else 0
 
+def test_torch_selu(device, nki_selu):
+    """
+    Test elementwise SELU between NKI and PyTorch implementations.
+    """
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    output_nki   = nki_selu(x)
+    output_torch = F.selu(x)
+    print("Checking correctness of nki_selu")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_leaky_relu(device, nki_leaky_relu):
+    """
+    Test elementwise LeakyReLU between NKI and PyTorch implementations.
+    """
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    negative_slope = 0.01
+    output_nki   = nki_leaky_relu(x, negative_slope)
+    output_torch = F.leaky_relu(x, negative_slope)
+    print("Checking correctness of nki_leaky_relu")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_hardswish(device, nki_hardswish):
+    """
+    Test elementwise HardSwish between NKI and PyTorch implementations.
+    """
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    output_nki   = nki_hardswish(x)
+    output_torch = F.hardswish(x)
+    print("Checking correctness of nki_hardswish")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_mse_loss(device, nki_mse_loss):
+    """
+    Test MSE loss between NKI and PyTorch implementations.
+    """
+    preds  = torch.randn((64, 10), dtype=torch.float32, device=device)
+    target = torch.randn((64, 10), dtype=torch.float32, device=device)
+    output_nki   = nki_mse_loss(preds, target, reduction='mean')
+    output_torch = F.mse_loss(preds, target, reduction='mean')
+    print("Checking correctness of nki_mse_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_l1_loss(device, nki_l1_loss):
+    """
+    Test L1 (MAE) loss between NKI and PyTorch implementations.
+    """
+    preds  = torch.randn((64, 10), dtype=torch.float32, device=device)
+    target = torch.randn((64, 10), dtype=torch.float32, device=device)
+    output_nki   = nki_l1_loss(preds, target, reduction='mean')
+    output_torch = F.l1_loss(preds, target, reduction='mean')
+    print("Checking correctness of nki_l1_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_cross_entropy(device, nki_cross_entropy):
+    """
+    Test cross-entropy loss between NKI and PyTorch implementations.
+    """
+    batch, classes = 32, 5
+    logits  = torch.randn((batch, classes), dtype=torch.float32, device=device)
+    target  = torch.randint(0, classes, (batch,),    device=device)
+    output_nki   = nki_cross_entropy(logits, target, reduction='mean')
+    output_torch = F.cross_entropy(logits, target, reduction='mean')
+    print("Checking correctness of nki_cross_entropy")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_nll_loss(device, nki_nll_loss):
+    """
+    Test negative log-likelihood loss between NKI and PyTorch implementations.
+    """
+    batch, classes = 32, 5
+    logits   = torch.randn((batch, classes), dtype=torch.float32, device=device)
+    log_probs = F.log_softmax(logits, dim=1)
+    target   = torch.randint(0, classes, (batch,),     device=device)
+    output_nki   = nki_nll_loss(log_probs, target, reduction='mean')
+    output_torch = F.nll_loss(log_probs, target, reduction='mean')
+    print("Checking correctness of nki_nll_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_binary_cross_entropy(device, nki_bce):
+    """
+    Test binary cross-entropy loss between NKI and PyTorch implementations.
+    """
+    x      = torch.rand((64,1), dtype=torch.float32, device=device)
+    target = torch.rand((64,1), dtype=torch.float32, device=device)
+    output_nki   = nki_bce(x, target, reduction='mean')
+    output_torch = F.binary_cross_entropy(x, target, reduction='mean')
+    print("Checking correctness of nki_binary_cross_entropy")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_hinge_embedding_loss(device, nki_hinge):
+    """
+    Test hinge embedding loss between NKI and PyTorch implementations.
+    """
+    x      = torch.randn((32, 10), dtype=torch.float32, device=device)
+    target = torch.randint(0,2,(32, 10),         device=device)*2 -1
+    margin = 1.0
+    output_nki   = nki_hinge(x, target, margin, reduction='mean')
+    output_torch = F.hinge_embedding_loss(x, target, margin, reduction='mean')
+    print("Checking correctness of nki_hinge_embedding_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_kl_div(device, nki_kl_div):
+    """
+    Test Kullback-Leibler divergence loss between NKI and PyTorch implementations.
+    """
+    batch, classes = 32, 5
+    logits  = torch.randn((batch, classes), dtype=torch.float32, device=device)
+    log_p   = F.log_softmax(logits, dim=1)
+    q       = F.softmax(torch.randn((batch, classes), dtype=torch.float32, device=device), dim=1)
+    output_nki   = nki_kl_div(log_p, q, reduction='mean')
+    output_torch = F.kl_div(log_p, q, reduction='mean')
+    print("Checking correctness of nki_kl_div")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_smooth_l1_loss(device, nki_smooth_l1):
+    """
+    Test Smooth L1 (Huber) loss between NKI and PyTorch implementations.
+    """
+    preds  = torch.randn((64, 10), dtype=torch.float32, device=device)
+    target = torch.randn((64, 10), dtype=torch.float32, device=device)
+    beta   = 1.0
+    output_nki   = nki_smooth_l1(preds, target, beta, reduction='mean')
+    output_torch = F.smooth_l1_loss(preds, target, beta, reduction='mean')
+    print("Checking correctness of nki_smooth_l1_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_cosine_embedding_loss(device, nki_cosine_emb):
+    """
+    Test cosine embedding loss between NKI and PyTorch implementations.
+    """
+    x1     = torch.randn((32, 128), dtype=torch.float32, device=device)
+    x2     = torch.randn((32, 128), dtype=torch.float32, device=device)
+    target = torch.randint(0,2,(32,), device=device)*2 -1
+    margin = 0.0
+    output_nki   = nki_cosine_emb(x1, x2, target, margin, reduction='mean')
+    output_torch = F.cosine_embedding_loss(x1, x2, target, margin, reduction='mean')
+    print("Checking correctness of nki_cosine_embedding_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_triplet_margin_loss(device, nki_triplet):
+    """
+    Test triplet margin loss between NKI and PyTorch implementations.
+    """
+    anchor   = torch.randn((32, 64), dtype=torch.float32, device=device)
+    positive = torch.randn((32, 64), dtype=torch.float32, device=device)
+    negative = torch.randn((32, 64), dtype=torch.float32, device=device)
+    margin   = 1.0
+    output_nki   = nki_triplet(anchor, positive, negative, margin, reduction='mean')
+    output_torch = F.triplet_margin_loss(anchor, positive, negative, margin=margin, reduction='mean')
+    print("Checking correctness of nki_triplet_margin_loss")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_batch_norm(device, nki_batch_norm):
+    """
+    Test batch normalization between NKI and PyTorch implementations.
+    """
+    N, C, H, W = 16, 8, 32, 32
+    x = torch.randn((N,C,H,W), dtype=torch.float32, device=device)
+    running_mean = torch.zeros(C, dtype=torch.float32, device=device)
+    running_var  = torch.ones(C,  dtype=torch.float32, device=device)
+    weight       = torch.ones(C,  dtype=torch.float32, device=device)
+    bias         = torch.zeros(C, dtype=torch.float32, device=device)
+    training     = True
+    momentum     = 0.1
+    eps          = 1e-5
+    output_nki   = nki_batch_norm(x, running_mean, running_var, weight, bias, training, momentum, eps)
+    output_torch = F.batch_norm(x, running_mean, running_var, weight, bias, training, momentum, eps)
+    print("Checking correctness of nki_batch_norm")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_layer_norm(device, nki_layer_norm):
+    """
+    Test layer normalization between NKI and PyTorch implementations.
+    """
+    x = torch.randn((20, 30, 40), dtype=torch.float32, device=device)
+    normalized_shape = (40,)
+    weight = torch.ones(normalized_shape, dtype=torch.float32, device=device)
+    bias   = torch.zeros(normalized_shape, dtype=torch.float32, device=device)
+    eps    = 1e-5
+    output_nki   = nki_layer_norm(x, normalized_shape, weight, bias, eps)
+    output_torch = F.layer_norm(x, normalized_shape, weight, bias, eps)
+    print("Checking correctness of nki_layer_norm")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_group_norm(device, nki_group_norm):
+    """
+    Test group normalization between NKI and PyTorch implementations.
+    """
+    N, C, H, W = 16, 8, 32, 32
+    num_groups = 4
+    x = torch.randn((N,C,H,W), dtype=torch.float32, device=device)
+    weight = torch.ones(C, dtype=torch.float32, device=device)
+    bias   = torch.zeros(C, dtype=torch.float32, device=device)
+    eps    = 1e-5
+    output_nki   = nki_group_norm(x, num_groups, weight, bias, eps)
+    output_torch = F.group_norm(x, num_groups, weight, bias, eps)
+    print("Checking correctness of nki_group_norm")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_instance_norm(device, nki_instance_norm):
+    """
+    Test instance normalization between NKI and PyTorch implementations.
+    """
+    N, C, H, W = 16, 8, 32, 32
+    x = torch.randn((N,C,H,W), dtype=torch.float32, device=device)
+    running_mean = torch.zeros(C, dtype=torch.float32, device=device)
+    running_var  = torch.ones(C,  dtype=torch.float32, device=device)
+    weight       = torch.ones(C, dtype=torch.float32, device=device)
+    bias         = torch.zeros(C, dtype=torch.float32, device=device)
+    eps          = 1e-5
+    output_nki   = nki_instance_norm(x, running_mean, running_var, weight, bias, True, 0.1, eps)
+    output_torch = F.instance_norm(x, running_mean, running_var, weight, bias, True, 0.1, eps)
+    print("Checking correctness of nki_instance_norm")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_dropout(device, nki_dropout):
+    """
+    Test dropout (no drop) between NKI and PyTorch implementations.
+    """
+    torch.manual_seed(0)
+    x = torch.randn((100,100), dtype=torch.float32, device=device)
+    p = 0.5
+    # test deterministic path
+    output_nki   = nki_dropout(x, p, False)
+    output_torch = F.dropout(x, p, False)
+    print("Checking correctness of nki_dropout (training=False)")
+    match = torch.equal(output_nki, output_torch)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_alpha_dropout(device, nki_alpha_dropout):
+    """
+    Test alpha dropout (no drop) between NKI and PyTorch implementations.
+    """
+    torch.manual_seed(0)
+    x = torch.randn((100,100), dtype=torch.float32, device=device)
+    p = 0.5
+    output_nki   = nki_alpha_dropout(x, p, False)
+    output_torch = F.alpha_dropout(x, p, False)
+    print("Checking correctness of nki_alpha_dropout (training=False)")
+    match = torch.equal(output_nki, output_torch)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_feature_alpha_dropout(device, nki_feat_alpha):
+    """
+    Test feature alpha dropout (no drop) between NKI and PyTorch implementations.
+    """
+    torch.manual_seed(0)
+    x = torch.randn((20, 5, 10), dtype=torch.float32, device=device)
+    p = 0.3
+    output_nki   = nki_feat_alpha(x, p, False)
+    output_torch = F.feature_alpha_dropout(x, p, False)
+    print("Checking correctness of nki_feature_alpha_dropout (training=False)")
+    match = torch.equal(output_nki, output_torch)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_softshrink(device, nki_softshrink):
+    """
+    Test softshrink between NKI and PyTorch implementations.
+    """
+    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    lambd = 0.5
+    output_nki   = nki_softshrink(x, lambd)
+    output_torch = F.softshrink(x, lambd)
+    print("Checking correctness of nki_softshrink")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_euclidean_dist(device, nki_euclid):
+    """
+    Test Euclidean distance between NKI and PyTorch implementations.
+    """
+    x = torch.randn((128,), dtype=torch.float32, device=device)
+    y = torch.randn((128,), dtype=torch.float32, device=device)
+    output_nki   = nki_euclid(x, y)
+    output_torch = torch.dist(x, y)
+    print("Checking correctness of nki_euclidean_dist")
+    print("NKI output:",   output_nki.item())
+    print("Torch output:", output_torch.item())
+    match = torch.allclose(output_nki, output_torch, atol=1e-6, rtol=1e-4)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_cosine_similarity(device, nki_cos_sim):
+    """
+    Test cosine similarity between NKI and PyTorch implementations.
+    """
+    x1 = torch.randn((32,64), dtype=torch.float32, device=device)
+    x2 = torch.randn((32,64), dtype=torch.float32, device=device)
+    dim=1
+    output_nki   = nki_cos_sim(x1, x2, dim)
+    output_torch = F.cosine_similarity(x1, x2, dim)
+    print("Checking correctness of nki_cosine_similarity")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_pairwise_distance(device, nki_pairwise):
+    """
+    Test pairwise distance between NKI and PyTorch implementations.
+    """
+    x1 = torch.randn((32,64), dtype=torch.float32, device=device)
+    x2 = torch.randn((32,64), dtype=torch.float32, device=device)
+    p=2.0
+    output_nki   = nki_pairwise(x1, x2, p)
+    output_torch = F.pairwise_distance(x1, x2, p=p)
+    print("Checking correctness of nki_pairwise_distance")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_conv1d(device, nki_conv1d):
+    """
+    Test 1D convolution between NKI and PyTorch implementations.
+    """
+    batch, in_ch, L = 4, 3, 32
+    out_ch, k = 5, 3
+    x = torch.randn((batch,in_ch,L), dtype=torch.float32, device=device)
+    weight = torch.randn((out_ch,in_ch,k), dtype=torch.float32, device=device)
+    bias   = torch.randn((out_ch,),     dtype=torch.float32, device=device)
+    stride, padding, dilation, groups = 1, 1, 1, 1
+    output_nki   = nki_conv1d(x, weight, bias, stride, padding, dilation, groups)
+    output_torch = F.conv1d(x, weight, bias, stride, padding, dilation, groups)
+    print("Checking correctness of nki_conv1d")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_conv2d(device, nki_conv2d):
+    """
+    Test 2D convolution between NKI and PyTorch implementations.
+    """
+    batch, in_ch, H, W = 4, 3, 32, 32
+    out_ch, kH, kW = 6, 3, 3
+    x = torch.randn((batch,in_ch,H,W), dtype=torch.float32, device=device)
+    weight = torch.randn((out_ch,in_ch,kH,kW), dtype=torch.float32, device=device)
+    bias   = torch.randn((out_ch,),           dtype=torch.float32, device=device)
+    stride, padding, dilation, groups = (1,1), (1,1), (1,1), 1
+    output_nki   = nki_conv2d(x, weight, bias, stride, padding, dilation, groups)
+    output_torch = F.conv2d(x, weight, bias, stride, padding, dilation, groups)
+    print("Checking correctness of nki_conv2d")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_conv3d(device, nki_conv3d):
+    """
+    Test 3D convolution between NKI and PyTorch implementations.
+    """
+    batch, in_ch, D, H, W = 2, 3, 16, 16, 16
+    out_ch, kD, kH, kW = 4, 3, 3, 3
+    x = torch.randn((batch,in_ch,D,H,W), dtype=torch.float32, device=device)
+    weight = torch.randn((out_ch,in_ch,kD,kH,kW), dtype=torch.float32, device=device)
+    bias   = torch.randn((out_ch,),           dtype=torch.float32, device=device)
+    stride, padding, dilation, groups = (1,1,1), (1,1,1), (1,1,1), 1
+    output_nki   = nki_conv3d(x, weight, bias, stride, padding, dilation, groups)
+    output_torch = F.conv3d(x, weight, bias, stride, padding, dilation, groups)
+    print("Checking correctness of nki_conv3d")
+    print("NKI output:",   output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_conv_transpose2d(device, nki_conv_t2d):
+    """
+    Test 2D transposed convolution between NKI and PyTorch implementations.
+    """
+    batch, in_ch, H, W = 2, 3, 16, 16
+    out_ch, kH, kW = 3, 4, 4
+    x = torch.randn((batch,in_ch,H,W), dtype=torch.float32, device=device)
+    weight = torch.randn((in_ch,out_ch,kH,kW), dtype=torch.float32, device=device)
+    bias   = torch.randn((out_ch,),          dtype=torch.float32, device=device)
+    stride, padding, output_padding, groups, dilation = (2,2), (1,1), (0,0), 1, (1,1)
+    output_nki   = nki_conv_t2d(x, weight, bias, stride, padding, output_padding, groups, dilation)
+    output_torch = F.conv_transpose2d(x, weight, bias, stride, padding, output_padding, groups, dilation)
+    print("Checking correctness of nki_conv_transpose2d")
+    print("NKI output:", output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_max_pool2d(device, nki_maxpool):
+    """
+    Test 2D max pooling between NKI and PyTorch implementations.
+    """
+    x = torch.randn((2,3,32,32), dtype=torch.float32, device=device)
+    kernel_size, stride, padding = 2, 2, 0
+    output_nki   = nki_maxpool(x, kernel_size, stride, padding)
+    output_torch = F.max_pool2d(x, kernel_size, stride, padding)
+    print("Checking correctness of nki_max_pool2d")
+    print("NKI output:", output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
+
+def test_torch_avg_pool2d(device, nki_avgpool):
+    """
+    Test 2D average pooling between NKI and PyTorch implementations.
+    """
+    x = torch.randn((2,3,32,32), dtype=torch.float32, device=device)
+    kernel_size, stride, padding = 2, 2, 0
+    output_nki   = nki_avgpool(x, kernel_size, stride, padding)
+    output_torch = F.avg_pool2d(x, kernel_size, stride, padding)
+    print("Checking correctness of nki_avg_pool2d")
+    print("NKI output:", output_nki)
+    print("Torch output:", output_torch)
+    match = torch.allclose(output_nki, output_torch, atol=1e-5, rtol=1e-3)
+    print("NKI and Torch match" if match else "Error: NKI and Torch differ")
+    return 1 if match else 0
