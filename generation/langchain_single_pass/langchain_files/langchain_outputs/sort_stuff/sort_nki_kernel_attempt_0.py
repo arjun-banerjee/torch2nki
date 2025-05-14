@@ -1,0 +1,153 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_sort(a_tensor, dim=-1):
+    # Get tensor shape and handle negative dimension
+    shape = a_tensor.shape
+    ndim = len(shape)
+    
+    if dim < 0:
+        dim = ndim + dim
+    
+    # Initialize result arrays for values and indices
+    values = nl.ndarray(shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    indices = nl.ndarray(shape, dtype=nl.int32, buffer=nl.shared_hbm)
+    
+    # Handle 1D tensor case
+    if ndim == 1:
+        size = shape[0]
+        max_tile_size = min(128, size)  # Respect hardware limitations
+        
+        # Initialize indices with sequential values
+        for i in nl.affine_range(math.ceil(size / max_tile_size)):
+            start_idx = i * max_tile_size
+            i_p = nl.arange(max_tile_size)
+            
+            # Create indices array
+            idx_tile = nl.add(start_idx, i_p)
+            
+            # Load values
+            val_tile = nl.load(a_tensor[start_idx:start_idx + max_tile_size], mask=(start_idx + i_p < size))
+            
+            # Store values and indices
+            nl.store(values[start_idx:start_idx + max_tile_size], val_tile, mask=(start_idx + i_p < size))
+            nl.store(indices[start_idx:start_idx + max_tile_size], idx_tile, mask=(start_idx + i_p < size))
+        
+        # Bubble sort the entire array
+        for i in nl.affine_range(size):
+            for j in nl.affine_range(size - 1):
+                # Load current and next elements
+                j_val = nl.load(values[j])
+                j_next_val = nl.load(values[j+1])
+                j_idx = nl.load(indices[j])
+                j_next_idx = nl.load(indices[j+1])
+                
+                # Compare and swap if necessary
+                swap_needed = nl.greater(j_val, j_next_val)
+                
+                # Update values and indices if swap is needed
+                new_j_val = nl.where(swap_needed, j_next_val, j_val)
+                new_j_next_val = nl.where(swap_needed, j_val, j_next_val)
+                new_j_idx = nl.where(swap_needed, j_next_idx, j_idx)
+                new_j_next_idx = nl.where(swap_needed, j_idx, j_next_idx)
+                
+                # Store updated values and indices
+                nl.store(values[j], new_j_val)
+                nl.store(values[j+1], new_j_next_val)
+                nl.store(indices[j], new_j_idx)
+                nl.store(indices[j+1], new_j_next_idx)
+    
+    # Handle 2D tensor case
+    elif ndim == 2:
+        rows, cols = shape
+        
+        # Sort along rows (dim=0)
+        if dim == 0:
+            # Initialize indices
+            for c in nl.affine_range(cols):
+                for r in nl.affine_range(math.ceil(rows / 128)):
+                    start_idx = r * 128
+                    i_p = nl.arange(128)
+                    
+                    # Create indices array
+                    idx_tile = nl.add(start_idx, i_p)
+                    
+                    # Load values
+                    val_tile = nl.load(a_tensor[start_idx:start_idx + 128, c], mask=(start_idx + i_p < rows))
+                    
+                    # Store values and indices
+                    nl.store(values[start_idx:start_idx + 128, c], val_tile, mask=(start_idx + i_p < rows))
+                    nl.store(indices[start_idx:start_idx + 128, c], idx_tile, mask=(start_idx + i_p < rows))
+            
+            # Sort each column
+            for c in nl.affine_range(cols):
+                for i in nl.affine_range(rows):
+                    for j in nl.affine_range(rows - 1):
+                        # Load current and next elements
+                        j_val = nl.load(values[j, c])
+                        j_next_val = nl.load(values[j+1, c])
+                        j_idx = nl.load(indices[j, c])
+                        j_next_idx = nl.load(indices[j+1, c])
+                        
+                        # Compare and swap if necessary
+                        swap_needed = nl.greater(j_val, j_next_val)
+                        
+                        # Update values and indices if swap is needed
+                        new_j_val = nl.where(swap_needed, j_next_val, j_val)
+                        new_j_next_val = nl.where(swap_needed, j_val, j_next_val)
+                        new_j_idx = nl.where(swap_needed, j_next_idx, j_idx)
+                        new_j_next_idx = nl.where(swap_needed, j_idx, j_next_idx)
+                        
+                        # Store updated values and indices
+                        nl.store(values[j, c], new_j_val)
+                        nl.store(values[j+1, c], new_j_next_val)
+                        nl.store(indices[j, c], new_j_idx)
+                        nl.store(indices[j+1, c], new_j_next_idx)
+        
+        # Sort along columns (dim=1)
+        else:
+            # Initialize indices
+            for r in nl.affine_range(rows):
+                for c in nl.affine_range(math.ceil(cols / 128)):
+                    start_idx = c * 128
+                    i_p = nl.arange(128)
+                    
+                    # Create indices array
+                    idx_tile = nl.add(start_idx, i_p)
+                    
+                    # Load values
+                    val_tile = nl.load(a_tensor[r, start_idx:start_idx + 128], mask=(start_idx + i_p < cols))
+                    
+                    # Store values and indices
+                    nl.store(values[r, start_idx:start_idx + 128], val_tile, mask=(start_idx + i_p < cols))
+                    nl.store(indices[r, start_idx:start_idx + 128], idx_tile, mask=(start_idx + i_p < cols))
+            
+            # Sort each row
+            for r in nl.affine_range(rows):
+                for i in nl.affine_range(cols):
+                    for j in nl.affine_range(cols - 1):
+                        # Load current and next elements
+                        j_val = nl.load(values[r, j])
+                        j_next_val = nl.load(values[r, j+1])
+                        j_idx = nl.load(indices[r, j])
+                        j_next_idx = nl.load(indices[r, j+1])
+                        
+                        # Compare and swap if necessary
+                        swap_needed = nl.greater(j_val, j_next_val)
+                        
+                        # Update values and indices if swap is needed
+                        new_j_val = nl.where(swap_needed, j_next_val, j_val)
+                        new_j_next_val = nl.where(swap_needed, j_val, j_next_val)
+                        new_j_idx = nl.where(swap_needed, j_next_idx, j_idx)
+                        new_j_next_idx = nl.where(swap_needed, j_idx, j_next_idx)
+                        
+                        # Store updated values and indices
+                        nl.store(values[r, j], new_j_val)
+                        nl.store(values[r, j+1], new_j_next_val)
+                        nl.store(indices[r, j], new_j_idx)
+                        nl.store(indices[r, j+1], new_j_next_idx)
+    
+    # Return both sorted values and indices
+    return values, indices

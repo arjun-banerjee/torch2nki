@@ -1,0 +1,164 @@
+***I will implement a sort kernel that handles arbitrary tensor sizes through tiling, properly supporting sorting along any specified dimension and returning both sorted values and indices as required in the PyTorch sort function.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_sort(a_tensor, dim=-1):
+    # Handle negative dimensions
+    if dim < 0:
+        dim = len(a_tensor.shape) + dim
+    
+    # Get shape of input tensor
+    shape = a_tensor.shape
+    size = shape[dim]
+    
+    # Initialize result arrays with same shape and dtype as input
+    values = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    indices = nl.ndarray(a_tensor.shape, dtype=nl.int32, buffer=nl.shared_hbm)
+    
+    # For simplicity, we'll first handle 1D and 2D tensors
+    if len(shape) == 1:
+        # For 1D tensors, dim can only be 0
+        # Process in tiles to handle tensors of all sizes
+        max_tile_size = nl.tile_size.pmax
+        trip_count = math.ceil(shape[0] / max_tile_size)
+        
+        for p in nl.affine_range(trip_count):
+            # Calculate start and end indices for this tile
+            start_idx = p * max_tile_size
+            
+            # Create indices for this tile
+            i_p = start_idx + nl.arange(max_tile_size)
+            
+            # Load values with masking for out-of-bounds indices
+            mask = i_p < shape[0]
+            values_tile = nl.load(a_tensor[i_p], mask=mask)
+            
+            # Initialize indices as identity mapping
+            indices_tile = nl.zeros((max_tile_size,), dtype=nl.int32, buffer=nl.sbuf)
+            indices_tile = start_idx + nl.arange(max_tile_size)
+            
+            # Bubble sort implementation
+            for i in nl.affine_range(max_tile_size):
+                for j in nl.affine_range(max_tile_size - 1):
+                    # Only compare if both indices are valid
+                    valid_pair = (j < max_tile_size - 1) & ((j + 1) < max_tile_size) & (j < shape[0] - start_idx - 1) & ((j + 1) < shape[0] - start_idx)
+                    
+                    # Compare adjacent elements
+                    swap_needed = nl.less(values_tile[j+1], values_tile[j]) & valid_pair
+                    
+                    # Swap values if needed
+                    temp_val = values_tile[j]
+                    values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), values_tile[j+1], values_tile)
+                    values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_val, values_tile)
+                    
+                    # Swap indices if needed
+                    temp_idx = indices_tile[j]
+                    indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), indices_tile[j+1], indices_tile)
+                    indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_idx, indices_tile)
+            
+            # Store results back to HBM
+            nl.store(values[i_p], values_tile, mask=mask)
+            nl.store(indices[i_p], indices_tile, mask=mask)
+            
+    elif len(shape) == 2:
+        # For 2D tensors, we need to sort along either dim 0 or dim 1
+        if dim == 0:
+            # Sort along dim 0 (columns)
+            max_tile_size = nl.tile_size.pmax
+            
+            # Process in tiles along dim 1
+            for col in nl.affine_range(shape[1]):
+                # Process each column in tiles
+                trip_count = math.ceil(shape[0] / max_tile_size)
+                
+                for p in nl.affine_range(trip_count):
+                    # Calculate start index for this tile
+                    start_idx = p * max_tile_size
+                    
+                    # Create indices for this tile
+                    i_p = start_idx + nl.arange(max_tile_size)
+                    
+                    # Load values with masking for out-of-bounds indices
+                    mask = i_p < shape[0]
+                    values_tile = nl.load(a_tensor[i_p, col], mask=mask)
+                    
+                    # Initialize indices as identity mapping
+                    indices_tile = nl.zeros((max_tile_size,), dtype=nl.int32, buffer=nl.sbuf)
+                    indices_tile = start_idx + nl.arange(max_tile_size)
+                    
+                    # Bubble sort implementation
+                    for i in nl.affine_range(max_tile_size):
+                        for j in nl.affine_range(max_tile_size - 1):
+                            # Only compare if both indices are valid
+                            valid_pair = (j < max_tile_size - 1) & ((j + 1) < max_tile_size) & (j < shape[0] - start_idx - 1) & ((j + 1) < shape[0] - start_idx)
+                            
+                            # Compare adjacent elements
+                            swap_needed = nl.less(values_tile[j+1], values_tile[j]) & valid_pair
+                            
+                            # Swap values if needed
+                            temp_val = values_tile[j]
+                            values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), values_tile[j+1], values_tile)
+                            values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_val, values_tile)
+                            
+                            # Swap indices if needed
+                            temp_idx = indices_tile[j]
+                            indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), indices_tile[j+1], indices_tile)
+                            indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_idx, indices_tile)
+                    
+                    # Store results back to HBM
+                    nl.store(values[i_p, col], values_tile, mask=mask)
+                    nl.store(indices[i_p, col], indices_tile, mask=mask)
+        else:  # dim == 1
+            # Sort along dim 1 (rows)
+            max_tile_size = nl.tile_size.pmax
+            
+            # Process in tiles along dim 0
+            for row in nl.affine_range(shape[0]):
+                # Process each row in tiles
+                trip_count = math.ceil(shape[1] / max_tile_size)
+                
+                for p in nl.affine_range(trip_count):
+                    # Calculate start index for this tile
+                    start_idx = p * max_tile_size
+                    
+                    # Create indices for this tile
+                    i_p = start_idx + nl.arange(max_tile_size)
+                    
+                    # Load values with masking for out-of-bounds indices
+                    mask = i_p < shape[1]
+                    values_tile = nl.load(a_tensor[row, i_p], mask=mask)
+                    
+                    # Initialize indices as identity mapping
+                    indices_tile = nl.zeros((max_tile_size,), dtype=nl.int32, buffer=nl.sbuf)
+                    indices_tile = start_idx + nl.arange(max_tile_size)
+                    
+                    # Bubble sort implementation
+                    for i in nl.affine_range(max_tile_size):
+                        for j in nl.affine_range(max_tile_size - 1):
+                            # Only compare if both indices are valid
+                            valid_pair = (j < max_tile_size - 1) & ((j + 1) < max_tile_size) & (j < shape[1] - start_idx - 1) & ((j + 1) < shape[1] - start_idx)
+                            
+                            # Compare adjacent elements
+                            swap_needed = nl.less(values_tile[j+1], values_tile[j]) & valid_pair
+                            
+                            # Swap values if needed
+                            temp_val = values_tile[j]
+                            values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), values_tile[j+1], values_tile)
+                            values_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_val, values_tile)
+                            
+                            # Swap indices if needed
+                            temp_idx = indices_tile[j]
+                            indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j), indices_tile[j+1], indices_tile)
+                            indices_tile = nl.where(swap_needed & (nl.arange(max_tile_size) == j+1), temp_idx, indices_tile)
+                    
+                    # Store results back to HBM
+                    nl.store(values[row, i_p], values_tile, mask=mask)
+                    nl.store(indices[row, i_p], indices_tile, mask=mask)
+    
+    result = (values, indices)
+    return result
+```

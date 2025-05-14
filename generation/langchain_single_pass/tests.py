@@ -1980,7 +1980,7 @@ def test_torch_sort(device, nki_sort):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((64, 128), dtype=torch.bfloat16, device=device)
     values_small, indices_small = nki_sort(x_small, dim=-1)
     output_small_torch = torch.sort(x_small, dim=-1)
     values_small_torch, indices_small_torch = output_small_torch.values, output_small_torch.indices

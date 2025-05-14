@@ -56,6 +56,11 @@ For multielement operations, think about what tiling strategy you should use to 
 
 HELPFUL ERROR HANDELING:
 If you are implementing a function using polynomials/taylor series, and you are getting: "❌ ERROR: NKI and PyTorch outputs differ!"  increase the precision of the calculation by adding more polynomial/Taylor approximation terms
+
+If you are getting a tuple index out of range error similar to:
+Tuple index out of range error: val = nl.full((), i, dtype=nl.int32)
+This should be: val = nl.full((1, 1), i, dtype=nl.int32)
+
 CAPABILITIES:
 - Generate well-structured kernel code according to user requirements
 - Provide clear documentation and usage examples

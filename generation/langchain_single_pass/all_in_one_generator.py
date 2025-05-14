@@ -870,9 +870,9 @@ if __name__ == "__main__":
 
     tests_passed_dict = {}
 
-    for i in range(len(multi_element_operators)):
-        operator = multi_element_operators[i]
-        test_name = multi_element_test_names[i]
+    for i in range(len(product_operators)):
+        operator = product_operators[i]
+        test_name = product_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
         user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
         output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"

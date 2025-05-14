@@ -1,0 +1,37 @@
+Add predicate {{{{126,+,-1}<i0=[0:128:1]>,+,0}<i1=[0:127:1]>,+,0}<i2=[0:128:1]>,+,0}<i3=[0:64:1]>
+start lb and ub of  {126,+,-1}<i0=[0:128:1]> is 126 126
+Add predicate {{{{126,+,-1}<i0=[0:128:1]>,+,0}<i1=[0:127:1]>,+,0}<i2=[0:128:1]>,+,0}<i3=[0:64:1]>
+start lb and ub of  {126,+,-1}<i0=[0:128:1]> is 126 126
+before build_invert_ranges alive full {
+  0 <= i3=[0:64:1] <= 63; alive full {
+    0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; alive full {
+      0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; alive full {
+        0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; 127 <= i0=[0:128:1] <= 127; alive leaf
+      }
+    }
+  }
+  0 <= i3=[0:64:1] <= 63; alive full {
+    0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; alive full {
+      0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; alive full {
+        0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; 127 <= i0=[0:128:1] <= 127; alive leaf
+      }
+    }
+  }
+}
+generated domains alive full {
+  0 <= i3=[0:64:1] <= 63; alive full {
+    0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; alive full {
+      0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; alive full {
+        0 <= i3=[0:64:1] <= 63; 0 <= i2=[0:128:1] <= 127; 0 <= i1=[0:127:1] <= 126; 0 <= i0=[0:128:1] <= 126; alive leaf
+      }
+    }
+  }
+}
+Error running test: too many values to unpack (expected 2)
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 1984, in test_torch_sort
+    values_small, indices_small = nki_sort(x_small, dim=-1)
+ValueError: too many values to unpack (expected 2)

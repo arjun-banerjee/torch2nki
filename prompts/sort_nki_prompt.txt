@@ -4,6 +4,17 @@ Generate a custom kernel for sort using AWS Neural Kernel Interface (NKI). The k
 - Follow best practices for compilation.
 - Be well-structured, modular, and maintainable.
 
+def nki_sort(a_tensor, dim=-1):
+You should implement the function definition as above
+When you get an error about TypeError: got an unexpected keyword argument 'dim', remember to use the function definition
+def nki_sort(a_tensor, dim=-1): 
+rather than 
+def nki_sort(a_tensor):
+
+Also some key issues to think about: you cannot create a variable such as i = nl.greater(a, b), then use i as a variable in an if statement like if i:
+also, when loading you must use shared_hbm, otherwise you should always use pbuf or sbuf
+
+
 Here is the NumPy kernel for the operation sort:
 
 Here is a simple implementation of a vectorized sort function in Python. This function uses the Bubble Sort algorithm to sort a list of numbers in ascending order.
