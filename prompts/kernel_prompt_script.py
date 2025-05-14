@@ -1,7 +1,59 @@
-import openai
 from openai import OpenAI
 import os
 import time
+import numpy as np
+
+op_fn = getattr(np, 'log1p')  # dynamically get np.log1p
+
+def generate_numpy_or_torch_kernel(op_name):
+    """
+    Generate a function definition string from NumPy or PyTorch.
+    """
+    import inspect
+    import numpy as np
+    import torch
+
+    # Check NumPy first
+    if hasattr(np, op_name):
+        doc = inspect.getdoc(getattr(np, op_name)) or "No documentation available."
+        fn_str = f"""\
+import numpy as np
+
+def {op_name}_vectorized(x, y=None):
+    \"\"\"
+    Vectorized implementation of numpy.{op_name}.
+
+    NumPy docstring:
+    {doc}
+    \"\"\"
+    if y is not None:
+        return np.{op_name}(x, y)
+    return np.{op_name}(x)
+"""
+        return fn_str
+
+    # Check PyTorch
+    if hasattr(torch, op_name):
+        doc = inspect.getdoc(getattr(torch, op_name)) or "No documentation available."
+        fn_str = f"""\
+import torch
+
+def {op_name}_vectorized(x, y=None):
+    \"\"\"
+    Vectorized implementation of torch.{op_name}.
+
+    PyTorch docstring:
+    {doc}
+    \"\"\"
+    if y is not None:
+        return torch.{op_name}(x, y)
+    return torch.{op_name}(x)
+"""
+        return fn_str
+
+    raise ValueError(f"Neither NumPy nor PyTorch has a function named '{op_name}'")
+
+
 
 operations = [
     ("view_as_real",),
@@ -35,24 +87,25 @@ def call_openai(prompt, model="gpt-4", max_tokens=800):
 
 
 for op, in operations:
-    print(f"Processing operation: {op}")
+    print(f"🔄 Processing operation: {op}")
 
-    # 1. Get NumPy kernel
-    numpy_prompt = f"""
-    Write a Python function for the operation '{op}'. The function should:
-    - Be vectorized.
-    - Not use built-in functions for calculations.
-    - 
-    - Include a short docstring for the function.
-    - Explains the exact steps needed to replicate the operation in the docstring
-
-    """
-
+    # Try to generate NumPy or PyTorch kernel
     try:
-        numpy_kernel = call_openai(numpy_prompt)
-    except Exception as e:
-        print(f"Failed NumPy kernel for {op}: {e}")
-        continue
+        numpy_kernel = generate_numpy_or_torch_kernel(op)
+        print(f"✅ Found implementation for {op} in NumPy or PyTorch")
+    except ValueError:
+        print(f"⚠️ {op} not found in NumPy or PyTorch. Falling back to OpenAI.")
+        fallback_prompt = f"""
+Write a Python function for the operation '{op}'. The function should:
+- Be vectorized.
+- Not use built-in functions for calculations.
+- Include a short docstring explaining the steps to replicate the operation manually.
+"""
+        try:
+            numpy_kernel = call_openai(fallback_prompt)
+        except Exception as e:
+            print(f"❌ Failed to generate fallback kernel for {op}: {e}")
+            continue
 
     # 2. Get NKI kernel using numpy kernel
     nki_prompt = f"""
