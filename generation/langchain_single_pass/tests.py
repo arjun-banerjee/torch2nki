@@ -25,8 +25,8 @@ def test_torch_addition(device, nki_vector_add):
     """
 
     # Test the small workload with basic kernel
-    lhs_small = np.random.rand(300, 128).astype(np.float16)
-    rhs_small = np.random.rand(300, 128).astype(np.float16)
+    lhs_small = np.random.rand(300, 300).astype(np.float16)
+    rhs_small = np.random.rand(300, 300).astype(np.float16)
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_vector_add(lhs_small, rhs_small))
@@ -53,8 +53,8 @@ def test_torch_subtraction(device, nki_subtraction):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    lhs_small = np.random.rand(300, 128).astype(np.float16)
-    rhs_small = np.random.rand(300, 128).astype(np.float16)
+    lhs_small = np.random.rand(300, 300).astype(np.float16)
+    rhs_small = np.random.rand(300, 300).astype(np.float16)
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_subtraction(lhs_small, rhs_small))
@@ -81,8 +81,8 @@ def test_torch_multiplication(device, nki_multiplication):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    lhs_small = np.random.rand(300, 128).astype(np.float16)
-    rhs_small = np.random.rand(300, 128).astype(np.float16)
+    lhs_small = np.random.rand(300, 300).astype(np.float16)
+    rhs_small = np.random.rand(300, 300).astype(np.float16)
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_multiplication(lhs_small, rhs_small))
@@ -108,8 +108,8 @@ def test_torch_division(device, nki_division):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    lhs_small = np.random.rand(300, 128).astype(np.float16)
-    rhs_small = np.random.rand(300, 128).astype(np.float16) + 0.1  # Avoid division by zero
+    lhs_small = np.random.rand(300, 300).astype(np.float16)
+    rhs_small = np.random.rand(300, 300).astype(np.float16) + 0.1  # Avoid division by zero
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_division(lhs_small, rhs_small))
@@ -135,7 +135,7 @@ def test_torch_absolute(device, nki_abs):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_abs(x_small))
@@ -161,7 +161,7 @@ def test_torch_exponential(device, nki_exp):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_exp(x_small))
@@ -187,7 +187,7 @@ def test_torch_log(device, nki_log):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) + 0.1  # Avoid log(0)
+    x_small = np.random.rand(300, 300).astype(np.float16) + 0.1  # Avoid log(0)
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_log(x_small))
@@ -213,7 +213,7 @@ def test_torch_sqrt(device, nki_sqrt):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16)  # Non-negative values
+    x_small = np.random.rand(300, 300).astype(np.float16)  # Non-negative values
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_sqrt(x_small))
@@ -239,7 +239,7 @@ def test_torch_rsqrt(device, nki_rsqrt):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) + 0.1  # Avoid division by zero
+    x_small = np.random.rand(300, 300).astype(np.float16) + 0.1  # Avoid division by zero
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_rsqrt(x_small))
@@ -265,7 +265,7 @@ def test_torch_power(device, nki_pow):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) + 0.1  # Avoid negative values
+    x_small = np.random.rand(300, 300).astype(np.float16) + 0.1  # Avoid negative values
     exponent = 2.0
 
     # Run NKI kernel
@@ -292,7 +292,7 @@ def test_torch_sine(device, nki_sin):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_sin(x_small))
@@ -318,7 +318,7 @@ def test_torch_cosine(device, nki_cos):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_cos(x_small))
@@ -390,7 +390,7 @@ def test_torch_tangent(device, nki_tan):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Test the small workload with basic kernel
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 * np.pi  # Values between 0 and 2π
 
     # Run NKI kernel
     output_small = torch.from_numpy(nki_tan(x_small))
@@ -416,8 +416,8 @@ def test_torch_arcsine(device, nki_asin):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_asin(x_small))
@@ -442,8 +442,8 @@ def test_torch_arccosine(device, nki_acos):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_acos(x_small))
@@ -468,8 +468,8 @@ def test_torch_arctangent(device, nki_atan):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_atan(x_small))
@@ -494,8 +494,8 @@ def test_torch_hyperbolic_sine(device, nki_sinh):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_sinh(x_small))
@@ -520,8 +520,8 @@ def test_torch_hyperbolic_cosine(device, nki_cosh):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_cosh(x_small))
@@ -546,8 +546,8 @@ def test_torch_hyperbolic_tangent(device, nki_tanh):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_tanh(x_small))
@@ -572,8 +572,8 @@ def test_torch_sigmoid(device, nki_sigmoid):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_sigmoid(x_small))
@@ -598,8 +598,8 @@ def test_torch_relu(device, nki_relu):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1  # Values between -1 and 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1  # Values between -1 and 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1  # Values between -1 and 1
     
     # Run NKI kernel
     output_small = torch.from_numpy(nki_relu(x_small))
@@ -624,8 +624,8 @@ def test_torch_threshold(device, nki_threshold):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    # x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2 - 1
-    x_small = np.random.rand(300, 128).astype(np.float16) * 2 - 1
+    # x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2 - 1
+    x_small = np.random.rand(300, 300).astype(np.float16) * 2 - 1
     threshold = 0.5
     value = 0.0
     
@@ -1573,7 +1573,7 @@ def test_torch_softmax(device, nki_softmax):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """ 
     # Test with a small workload
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     
     # Run NKI kernel
     output_small = nki_softmax(x_small.to(xla_device))
@@ -1595,7 +1595,7 @@ def test_torch_log_softmax(device, nki_log_softmax):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_log_softmax(x_small)
     output_small_torch = torch.log_softmax(x_small, dim=-1)
     print("Checking correctness of log softmax operation...")
@@ -1611,8 +1611,8 @@ def test_torch_max(device, nki_max):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    y_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
+    y_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_max(x_small, y_small)
     output_small_torch = torch.max(x_small, y_small)
     print("Checking correctness of element-wise maximum operation...")
@@ -1628,8 +1628,8 @@ def test_torch_min(device, nki_min):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    y_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
+    y_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_min(x_small, y_small)
     output_small_torch = torch.min(x_small, y_small)
     print("Checking correctness of element-wise minimum operation...")
@@ -1645,7 +1645,7 @@ def test_torch_sum(device, nki_sum):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_sum(x_small)
     output_small_torch = torch.sum(x_small)
     print("Checking correctness of summation operation...")
@@ -1661,7 +1661,7 @@ def test_torch_mean(device, nki_mean):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_mean(x_small)
     output_small_torch = torch.mean(x_small)
     print("Checking correctness of mean operation...")
@@ -1677,7 +1677,7 @@ def test_torch_var(device, nki_var):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_var(x_small)
     output_small_torch = torch.var(x_small)
     print("Checking correctness of variance operation...")
@@ -1693,7 +1693,7 @@ def test_torch_std(device, nki_std):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_std(x_small)
     output_small_torch = torch.std(x_small)
     print("Checking correctness of standard deviation operation...")
@@ -1709,7 +1709,7 @@ def test_torch_norm(device, nki_norm):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_norm(x_small)
     output_small_torch = torch.norm(x_small)
     print("Checking correctness of norm operation...")
@@ -1726,7 +1726,7 @@ def test_torch_cumsum(device, nki_cumsum):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_cumsum(x_small, dim=-1)
     output_small_torch = torch.cumsum(x_small, dim=-1)
     print("Checking correctness of cumulative sum operation...")
@@ -1744,7 +1744,7 @@ def test_torch_cumprod(device, nki_cumprod):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Add a small constant to avoid multiplying by zero
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) + 0.1
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) + 0.1
     output_small = nki_cumprod(x_small, dim=-1)
     output_small_torch = torch.cumprod(x_small, dim=-1)
     print("Checking correctness of cumulative product operation...")
@@ -1761,7 +1761,7 @@ def test_torch_prod(device, nki_prod):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) + 0.1
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) + 0.1
     output_small = nki_prod(x_small)
     output_small_torch = torch.prod(x_small)
     print("Checking correctness of product operation...")
@@ -1778,7 +1778,7 @@ def test_torch_round(device, nki_round):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 10 - 5
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 10 - 5
     output_small = nki_round(x_small)
     output_small_torch = torch.round(x_small)
     print("Checking correctness of rounding operation...")
@@ -1795,7 +1795,7 @@ def test_torch_floor(device, nki_floor):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 10 - 5
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 10 - 5
     output_small = nki_floor(x_small)
     output_small_torch = torch.floor(x_small)
     print("Checking correctness of floor operation...")
@@ -1812,7 +1812,7 @@ def test_torch_ceil(device, nki_ceil):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 10 - 5
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 10 - 5
     output_small = nki_ceil(x_small)
     output_small_torch = torch.ceil(x_small)
     print("Checking correctness of ceil operation...")
@@ -1830,7 +1830,7 @@ def test_torch_trunc(device, nki_trunc):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 10 - 5
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 10 - 5
     output_small = nki_trunc(x_small)
     output_small_torch = torch.trunc(x_small)
     print("Checking correctness of truncation operation...")
@@ -1848,7 +1848,7 @@ def test_torch_sign(device, nki_sign):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.randn((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.randn((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_sign(x_small)
     output_small_torch = torch.sign(x_small)
     print("Checking correctness of sign operation...")
@@ -1866,7 +1866,7 @@ def test_torch_where(device, nki_where):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     condition = x_small > 0.5
     other = torch.zeros_like(x_small)
     output_small = nki_where(condition, x_small, other)
@@ -1886,7 +1886,7 @@ def test_torch_eq(device, nki_eq):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     y_small = x_small.clone()
     output_small = nki_eq(x_small, y_small)
     output_small_torch = torch.eq(x_small, y_small)
@@ -1905,7 +1905,7 @@ def test_torch_ne(device, nki_ne):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     y_small = x_small + 1.0  # ensure differences
     output_small = nki_ne(x_small, y_small)
     output_small_torch = torch.ne(x_small, y_small)
@@ -1924,8 +1924,8 @@ def test_torch_gt(device, nki_gt):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    y_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
+    y_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_gt(x_small, y_small)
     output_small_torch = torch.gt(x_small, y_small)
     print("Checking correctness of element-wise greater than comparison...")
@@ -1943,8 +1943,8 @@ def test_torch_lt(device, nki_lt):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    y_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
+    y_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_lt(x_small, y_small)
     output_small_torch = torch.lt(x_small, y_small)
     print("Checking correctness of element-wise less than comparison...")
@@ -1962,7 +1962,7 @@ def test_torch_clamp(device, nki_clamp):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device) * 2  # values in [0,2]
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device) * 2  # values in [0,2]
     output_small = nki_clamp(x_small, min=0.5, max=1.5)
     output_small_torch = torch.clamp(x_small, min=0.5, max=1.5)
     print("Checking correctness of clamping operation...")
@@ -1980,7 +1980,7 @@ def test_torch_sort(device, nki_sort):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     values_small, indices_small = nki_sort(x_small, dim=-1)
     output_small_torch = torch.sort(x_small, dim=-1)
     values_small_torch, indices_small_torch = output_small_torch.values, output_small_torch.indices
@@ -1999,7 +1999,7 @@ def test_torch_topk(device, nki_topk):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     k = 5
     values_small, indices_small = nki_topk(x_small, k=k, dim=-1)
     output_small_torch = torch.topk(x_small, k=k, dim=-1)
@@ -2020,7 +2020,7 @@ def test_torch_kthvalue(device, nki_kthvalue):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     k = 10
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     value_small, index_small = nki_kthvalue(x_small, k=k, dim=-1)
     output_small_torch = torch.kthvalue(x_small, k=k, dim=-1)
     value_small_torch, index_small_torch = output_small_torch.values, output_small_torch.indices
@@ -2039,7 +2039,7 @@ def test_torch_median(device, nki_median):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     value_small, index_small = nki_median(x_small, dim=-1)
     output_small_torch = torch.median(x_small, dim=-1)
     value_small_torch, index_small_torch = output_small_torch.values, output_small_torch.indices
@@ -2059,7 +2059,7 @@ def test_torch_mode(device, nki_mode):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Use an integer tensor with limited range to obtain meaningful mode
-    x_small = torch.randint(0, 5, (300, 128), device=device)
+    x_small = torch.randint(0, 5, (300, 300), device=device)
     value_small, index_small = nki_mode(x_small, dim=-1)
     output_small_torch = torch.mode(x_small, dim=-1)
     value_small_torch, index_small_torch = output_small_torch.values, output_small_torch.indices
@@ -2079,7 +2079,7 @@ def test_torch_percentile(device, nki_percentile):
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
     # Use 50th percentile as a test (equivalent to median)
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_percentile(x_small, q=50, dim=-1)
     output_small_torch = torch.percentile(x_small, q=50, dim=-1)
     print("Checking correctness of percentile operation...")
@@ -2097,7 +2097,7 @@ def test_torch_logsumexp(device, nki_logsumexp):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_logsumexp(x_small, dim=-1)
     output_small_torch = torch.logsumexp(x_small, dim=-1)
     print("Checking correctness of logsumexp operation...")
@@ -2115,7 +2115,7 @@ def test_torch_amax(device, nki_amax):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_amax(x_small, dim=-1)
     output_small_torch = torch.amax(x_small, dim=-1)
     print("Checking correctness of amax operation...")
@@ -2133,7 +2133,7 @@ def test_torch_amin(device, nki_amin):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_small = nki_amin(x_small, dim=-1)
     output_small_torch = torch.amin(x_small, dim=-1)
     print("Checking correctness of amin operation...")
@@ -2151,7 +2151,7 @@ def test_torch_all(device, nki_all):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     condition = x_small > 0.5
     output_small = nki_all(condition)
     output_small_torch = torch.all(condition)
@@ -2170,7 +2170,7 @@ def test_torch_any(device, nki_any):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    x_small = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    x_small = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     condition = x_small > 0.5
     output_small = nki_any(condition)
     output_small_torch = torch.any(condition)
@@ -2334,7 +2334,7 @@ def test_torch_matmul(device, nki_matmul):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    a = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    a = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     b = torch.rand((128, 32), dtype=torch.bfloat16, device=device)
     output_nki = nki_matmul(a, b)
     output_torch = torch.matmul(a, b)
@@ -2352,7 +2352,7 @@ def test_torch_mm(device, nki_mm):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    a = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    a = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     b = torch.rand((128, 32), dtype=torch.bfloat16, device=device)
     output_nki = nki_mm(a, b)
     output_torch = torch.mm(a, b)
@@ -2370,7 +2370,7 @@ def test_torch_mv(device, nki_mv):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    a = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    a = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     b = torch.rand((128,), dtype=torch.bfloat16, device=device)
     output_nki = nki_mv(a, b)
     output_torch = torch.mv(a, b)
@@ -2388,7 +2388,7 @@ def test_torch_bmm(device, nki_bmm):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    a = torch.rand((10, 300, 128), dtype=torch.bfloat16, device=device)
+    a = torch.rand((10, 300, 300), dtype=torch.bfloat16, device=device)
     b = torch.rand((10, 128, 32), dtype=torch.bfloat16, device=device)
     output_nki = nki_bmm(a, b)
     output_torch = torch.bmm(a, b)
@@ -2443,8 +2443,8 @@ def test_torch_hadamard(device, nki_hadamard):
     Returns:
         int: Returns 1 if NKI and PyTorch results match, 0 otherwise
     """
-    a = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
-    b = torch.rand((300, 128), dtype=torch.bfloat16, device=device)
+    a = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
+    b = torch.rand((300, 300), dtype=torch.bfloat16, device=device)
     output_nki = nki_hadamard(a, b)
     output_torch = torch.mul(a, b)
     print("Checking correctness of Hadamard product operation...")
@@ -2921,7 +2921,7 @@ def test_torch_gelu(device, nki_gelu):
     """
     Test elementwise GELU between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     output_nki   = nki_gelu(x)
     output_torch = F.gelu(x)
     print("Checking correctness of nki_gelu")
@@ -2935,7 +2935,7 @@ def test_torch_elu(device, nki_elu):
     """
     Test elementwise ELU between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     alpha = 1.0
     output_nki   = nki_elu(x, alpha)
     output_torch = F.elu(x,    alpha)
@@ -2950,7 +2950,7 @@ def test_torch_selu(device, nki_selu):
     """
     Test elementwise SELU between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     output_nki   = nki_selu(x)
     output_torch = F.selu(x)
     print("Checking correctness of nki_selu")
@@ -2964,7 +2964,7 @@ def test_torch_leaky_relu(device, nki_leaky_relu):
     """
     Test elementwise LeakyReLU between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     negative_slope = 0.01
     output_nki   = nki_leaky_relu(x, negative_slope)
     output_torch = F.leaky_relu(x, negative_slope)
@@ -2979,7 +2979,7 @@ def test_torch_hardswish(device, nki_hardswish):
     """
     Test elementwise HardSwish between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     output_nki   = nki_hardswish(x)
     output_torch = F.hardswish(x)
     print("Checking correctness of nki_hardswish")
@@ -3276,7 +3276,7 @@ def test_torch_softshrink(device, nki_softshrink):
     """
     Test softshrink between NKI and PyTorch implementations.
     """
-    x = torch.randn((300, 128), dtype=torch.float32, device=device)
+    x = torch.randn((300, 300), dtype=torch.float32, device=device)
     lambd = 0.5
     output_nki   = nki_softshrink(x, lambd)
     output_torch = F.softshrink(x, lambd)
