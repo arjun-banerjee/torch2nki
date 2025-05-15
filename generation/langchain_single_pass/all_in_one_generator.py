@@ -145,10 +145,6 @@ def generate_kernel_with_direct_docs_and_error_loop(
         f.write(f"Started at: {datetime.datetime.now()}\n")
         f.write(f"Output path: {output_address}\n")
         f.write(f"Kernel module path: {kernel_module_path}\n\n")
-
-    # Load the initial prompts
-    system_prompt = read_file(system_prompt_path)
-    user_prompt = read_file(user_prompt_path)
     
     
     # Initialize LLMs
@@ -183,7 +179,45 @@ def generate_kernel_with_direct_docs_and_error_loop(
         region_name="us-west-2"
     )
     
+    # Create user prompts
+    base_prompt_file = "/home/ubuntu/torch2nki/prompts/base_user_prompt.txt"
+    numpy_prompt = f"Generate a concise NumPy kernel implementation for the '{kernel_func_name}' operation."
+    nki_prompt = f"""Generate a custom kernel for the '{kernel_func_name}' operation using AWS Neural Kernel Interface (NKI).
+The kernel should:
+- Use the proper NKI API integration.
+- Follow best practices for compilation.
+- Be well-structured, modular, and maintainable.
+Assume the input and output are single-dimensional tensors."""
 
+    try:
+        numpy_response = query_llm.invoke([HumanMessage(content=numpy_prompt)])
+        numpy_kernel = numpy_response.content.strip()
+    except Exception as e:
+        numpy_kernel = f"Error generating NumPy kernel: {e}"
+        
+    try:
+        with open(user_prompt_path, "w") as f:
+            f.write(f"{nki_prompt}")
+            f.write(f"### NumPy Kernel for '{kernel_func_name}':\n")
+            f.write(f"```python\n{numpy_kernel}\n```\n\n")
+        try:
+            with open(base_prompt_file, "r") as base_f:
+                base_prompt_content = base_f.read()
+            with open(user_prompt_path, "a") as f:
+                f.write("\n\n---\n\n")
+                f.write(base_prompt_content)
+        except FileNotFoundError:
+            print(f"Warning: File '{base_prompt_file}' not found. Kernels file created without appending.")
+        except Exception as e:
+            print(f"Error appending '{base_prompt_file}': {e}")
+
+    except Exception as e:
+        print(f"Error creating kernels file: {e}")
+        
+    
+    # Load the initial prompts
+    system_prompt = read_file(system_prompt_path)
+    user_prompt = read_file(user_prompt_path)
 
     # Get list of available functions
     available_functions = get_available_functions(docs_dir)
@@ -707,6 +741,227 @@ def generate_kernel_with_direct_docs_and_error_loop(
 if __name__ == "__main__":
     # Define constant file paths
     #TODO change depending on system
+    
+    all_test_names = [
+        # "test_torch_addition",
+        # "test_torch_subtraction",
+        # "test_torch_multiplication",
+        # "test_torch_division",
+        # "test_torch_absolute",
+        # "test_torch_exponential",
+        # "test_torch_log",
+        # "test_torch_sqrt",
+        # "test_torch_rsqrt",
+        # "test_torch_power",
+        # "test_torch_sine",
+        # "test_torch_cosine",
+        # "test_torch_ctc",
+        # "test_torch_tangent",
+        # "test_torch_arcsine",
+        # "test_torch_arccosine",
+        # "test_torch_arctangent",
+        # "test_torch_hyperbolic_sine",
+        # "test_torch_hyperbolic_cosine",
+        # "test_torch_hyperbolic_tangent",
+        # "test_torch_sigmoid",
+        # "test_torch_relu",
+        # "test_torch_threshold",
+        # "test_torch_special_entr",
+        # "test_torch_special_i1",
+        # "test_torch_special_xlogy",
+        # "test_torch_special_logit",
+        # "test_torch_angle",
+        # "test_torch_polar",
+        # "test_torch_view_as_real",
+        # "test_torch_view_as_complex",
+        # "test_torch_copysign",
+        # "test_torch_nextafter",
+        # "test_torch_hypot",
+        # "test_torch_log1p",
+        # "test_torch_expm1",
+        # "test_torch_frexp",
+        # "test_torch_ldexp",
+        # "test_torch_logaddexp",
+        # "test_torch_logaddexp2",
+        # "test_torch_sinc",
+        # "test_torch_xlogy",
+        # "test_torch_edit_distance",
+        # "test_torch_hamming_distance",
+        # "test_torch_linalg_qr",
+        # "test_torch_linalg_svd",
+        # "test_torch_linalg_inv",
+        # "test_torch_linalg_pinv",
+        # "test_torch_linalg_matrix_norm",
+        # "test_torch_linalg_vector_norm",
+        # "test_torch_linalg_cross",
+        # "test_torch_linalg_outer",
+        # "test_torch_linalg_tensordot",
+        # "test_torch_linalg_eigh",
+        # "test_torch_linalg_eig",
+        # "test_torch_linalg_slogdet",
+        # "test_torch_linalg_solve",
+        # "test_torch_linalg_lstsq",
+        # "test_torch_linalg_cholesky",
+        # "test_torch_linalg_lu",
+        # "test_torch_linalg_ldl_factor",
+        # "test_torch_linalg_triangular_solve",
+        # "test_torch_gelu",
+        # "test_torch_elu",
+        # "test_torch_selu",
+        # "test_torch_leaky_relu",
+        # "test_torch_hardswish",
+        # "test_torch_mse_loss",
+        # "test_torch_l1_loss",
+        # "test_torch_cross_entropy",
+        # "test_torch_nll_loss",
+        # "test_torch_binary_cross_entropy",
+        # "test_torch_hinge_embedding_loss",
+        # "test_torch_kl_div",
+        # "test_torch_smooth_l1_loss",
+        # "test_torch_cosine_embedding_loss",
+        # "test_torch_triplet_margin_loss",
+        # "test_torch_batch_norm",
+        # "test_torch_layer_norm",
+        # "test_torch_group_norm",
+        # "test_torch_instance_norm",
+        # "test_torch_dropout",
+        # "test_torch_alpha_dropout",
+        # "test_torch_feature_alpha_dropout",
+        # "test_torch_softshrink",
+        # "test_torch_euclidean_dist",
+        # "test_torch_cosine_similarity",
+        # "test_torch_pairwise_distance",
+        # "test_torch_conv1d",
+        # "test_torch_conv2d",
+        # "test_torch_conv3d",
+        # "test_torch_conv_transpose2d",
+        # "test_torch_max_pool2d",
+        # "test_torch_avg_pool2d",
+        "test_torch_softmax",
+        "test_torch_log_softmax",
+        "test_torch_max",
+        "test_torch_min",
+        "test_torch_sum",
+        "test_torch_mean",
+        "test_torch_var",
+        "test_torch_std",
+        "test_torch_norm",
+        "test_torch_cumsum",
+        "test_torch_cumprod",
+        "test_torch_prod",
+        "test_torch_round",
+        "test_torch_floor",
+        "test_torch_ceil",
+        "test_torch_trunc",
+        "test_torch_sign",
+        "test_torch_where",
+        "test_torch_eq",
+        "test_torch_ne",
+        "test_torch_gt",
+        "test_torch_lt",
+        "test_torch_clamp",
+        "test_torch_sort",
+        "test_torch_topk",
+        "test_torch_kthvalue",
+        "test_torch_median",
+        "test_torch_mode",
+        "test_torch_percentile",
+        "test_torch_logsumexp",
+        "test_torch_amax",
+        "test_torch_amin",
+        "test_torch_all",
+        "test_torch_any",
+        "test_torch_bincount",
+        "test_torch_unique",
+        "test_torch_unique_consecutive",
+        "test_torch_inner",
+        "test_torch_outer",
+        "test_torch_dot",
+        "test_torch_vdot",
+        "test_torch_cross",
+        "test_torch_matmul",
+        "test_torch_mm",
+        "test_torch_mv",
+        "test_torch_bmm",
+        "test_torch_tensordot",
+        "test_torch_kron",
+        "test_torch_hadamard",
+        "test_torch_linalg_vecdot",
+        "test_torch_linalg_multi_dot",
+        "test_torch_qr",
+        "test_torch_svd",
+        "test_torch_inv",
+        "test_torch_pinv",
+        "test_torch_matrix_norm",
+        "test_torch_vector_norm",
+        "test_torch_cross",
+        "test_torch_outer",
+        "test_torch_tensordot",
+        "test_torch_eigh",
+        "test_torch_eig",
+        "test_torch_slogdet",
+        "test_torch_solve",
+        "test_torch_lstsq",
+        "test_torch_cholesky",
+        "test_torch_lu",
+        "test_torch_ldl_factor",
+        "test_torch_triangular_solve",
+        "test_torch_special_entr",
+        "test_torch_special_i1",
+        "test_torch_special_xlogy",
+        "test_torch_special_logit",
+        "test_torch_angle",
+        "test_torch_polar",
+        "test_torch_view_as_real",
+        "test_torch_view_as_complex",
+        "test_torch_copysign",
+        "test_torch_nextafter",
+        "test_torch_hypot",
+        "test_torch_log1p",
+        "test_torch_expm1",
+        "test_torch_frexp",
+        "test_torch_ldexp",
+        "test_torch_logaddexp",
+        "test_torch_logaddexp2",
+        "test_torch_sinc",
+        "test_torch_xlogy",
+        "test_torch_edit_distance",
+        "test_torch_hamming_distance",
+        "test_torch_gelu",
+        "test_torch_elu",
+        "test_torch_selu",
+        "test_torch_leaky_relu",
+        "test_torch_hardswish",
+        "test_torch_mse_loss",
+        "test_torch_l1_loss",
+        "test_torch_cross_entropy",
+        "test_torch_nll_loss",
+        "test_torch_binary_cross_entropy",
+        "test_torch_hinge_embedding_loss",
+        "test_torch_kl_div",
+        "test_torch_smooth_l1_loss",
+        "test_torch_cosine_embedding_loss",
+        "test_torch_triplet_margin_loss",
+        "test_torch_batch_norm",
+        "test_torch_layer_norm",
+        "test_torch_group_norm",
+        "test_torch_instance_norm",
+        "test_torch_dropout",
+        "test_torch_alpha_dropout",
+        "test_torch_feature_alpha_dropout",
+        "test_torch_softshrink",
+        "test_torch_euclidean_dist",
+        "test_torch_cosine_similarity",
+        "test_torch_pairwise_distance",
+        "test_torch_conv1d",
+        "test_torch_conv2d",
+        "test_torch_conv3d",
+        "test_torch_conv_transpose2d",
+        "test_torch_max_pool2d",
+        "test_torch_avg_pool2d"
+    ]
+    
+    all_operator_names = [test_name.split("test_torch_")[1] for test_name in all_test_names]
 
     elementwise_operators = [
        "add", "sub", 
@@ -870,9 +1125,9 @@ if __name__ == "__main__":
 
     tests_passed_dict = {}
 
-    for i in range(len(multi_element_operators)):
-        operator = multi_element_operators[i]
-        test_name = multi_element_test_names[i]
+    for i in range(len(all_test_names)):
+        operator = all_operator_names[i]
+        test_name = all_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
         user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
         output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"
@@ -903,14 +1158,18 @@ if __name__ == "__main__":
                 reasoning_log_path,
                 error_doc_path,
                 docs_dir,
-                max_iterations=6
+                max_iterations=10
             )
             if result:
                 print(result)
                 tests_passed_dict[operator] = True
+                with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:
+                    json.dump(tests_passed_dict, f)
                 break
             else:
                 tests_passed_dict[operator] = False
+                with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:
+                    json.dump(tests_passed_dict, f)
 
             ctr += 1
 
