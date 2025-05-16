@@ -493,6 +493,18 @@ def test_torch_sine(device, nki_vector_sine):
                     break
         return 0
 
+def test_torch_conv2d(device, mlops_conv2d):
+    """Test 2D convolution between MLOps and PyTorch implementations."""
+    x = torch.randn((8, 128, 32, 32), dtype=torch.bfloat16, device=device)
+    weight = torch.randn((6, 128, 5, 5), dtype=torch.bfloat16, device=device)
+    bias = torch.randn((3,), dtype = torch.bfloat16, device = device)
+    out_mlops = mlops_conv2d(x, weight, bias)
+    out_torch = torch.nn.functional.conv2d(x, weight, bias=bias)
+    print("Checking correctness of conv2d operation...")
+    match = torch.allclose(out_torch, out_mlops, atol=1e-2, rtol=1e-2)
+    print("MLOps and Torch match!" if match else "MLOps and Torch differ")
+    return 1 if match else 0
+
 def test_torch_cosine(device, nki_vector_cosine):
     """Test elementwise cosine between NKI and PyTorch implementations.
     
