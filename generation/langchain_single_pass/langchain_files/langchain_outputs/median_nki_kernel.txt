@@ -1,0 +1,79 @@
+I'll implement an efficient NKI kernel for computing the median of a tensor. The median requires sorting the tensor elements, so I'll need to handle tiling properly to respect hardware limitations.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_median(a_tensor):
+    # Handle scalar or empty tensor
+    if len(a_tensor.shape) == 0:
+        return nl.load(a_tensor)
+    
+    # Flatten the tensor to 1D for median calculation
+    total_elements = 1
+    for dim in a_tensor.shape:
+        total_elements *= dim
+    
+    if total_elements == 0:
+        # Return None for empty tensor
+        return nl.zeros((), dtype=nl.float32)
+    
+    # Calculate median on flattened array
+    # Create a result scalar
+    result = nl.zeros((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Create a temporary buffer to store the flattened array
+    flat_buffer = nl.ndarray((total_elements,), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed for flattening
+    max_elements_per_tile = nl.tile_size.pmax
+    trip_count = math.ceil(total_elements / max_elements_per_tile)
+    
+    # Copy elements to the flattened buffer
+    for p in nl.affine_range(trip_count):
+        # Calculate start and end indices for this tile
+        start_idx = p * max_elements_per_tile
+        
+        # Create index array for this tile
+        indices = start_idx + nl.arange(max_elements_per_tile)
+        
+        # Calculate multi-dimensional indices from flat indices
+        # (We'll load the elements directly using flat indexing)
+        
+        # Load the data from input tensor
+        flat_indices = indices.reshape(-1, 1)
+        
+        # Load data from the input tensor with masking for out-of-bounds indices
+        src_data = nl.load(a_tensor.reshape(-1)[flat_indices], mask=(flat_indices < total_elements))
+        
+        # Store the loaded data into the flat buffer
+        nl.store(flat_buffer[flat_indices], value=src_data, mask=(flat_indices < total_elements))
+    
+    # Sort the flattened array (since NKI doesn't have a direct sort function,
+    # we'll implement a simple sorting algorithm - bitonic sort for this example)
+    
+    # Use a simple approach for small arrays:
+    # For each element, count how many elements are less than it
+    # Then place it in the correct position in the sorted array
+    
+    sorted_buffer = nl.ndarray((total_elements,), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # We'll compute the rank of each element (how many elements are smaller than it)
+    for i in nl.affine_range(math.ceil(total_elements / max_elements_per_tile)):
+        i_indices = i * max_elements_per_tile + nl.arange(max_elements_per_tile).reshape(-1, 1)
+        i_values = nl.load(flat_buffer[i_indices], mask=(i_indices < total_elements))
+        
+        # Initialize ranks for this tile
+        ranks = nl.zeros((min(max_elements_per_tile, total_elements - i * max_elements_per_tile), 1), 
+                         dtype=nl.int32, buffer=nl.sbuf)
+        
+        # Compare with all other elements
+        for j in nl.affine_range(math.ceil(total_elements / max_elements_per_tile)):
+            j_indices = j * max_elements_per_tile + nl.arange(max_elements_per_tile).reshape(1, -1)
+            j_values = nl.load(flat_buffer[j_indices], mask=(j_indices < total_elements))
+            
+            # Create a comparison mask for valid indices
+            i_mask = (i_indices < total_elements)
+            j_mask = (j_indices < total_elements

@@ -1,0 +1,87 @@
+I'll implement a sorting kernel using AWS Neural Kernel Interface (NKI). The kernel will sort a tensor along the specified dimension using an efficient sorting algorithm. Since we need to handle potentially large tensors, I'll implement a tiled approach to respect the hardware limitations.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_sort(a_tensor, dim=-1):
+    # Handle negative dimension index
+    if dim < 0:
+        dim = len(a_tensor.shape) + dim
+    
+    # Get the tensor shape
+    tensor_shape = a_tensor.shape
+    
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # If tensor is 1D, handle as special case
+    if len(tensor_shape) == 1:
+        _sort_1d(a_tensor, result)
+    else:
+        # For multi-dimensional tensors, we need to sort along the specified dimension
+        _sort_nd(a_tensor, result, dim)
+    
+    return result
+
+def _sort_1d(a_tensor, result):
+    """Sort a 1D tensor"""
+    sz = a_tensor.shape[0]
+    
+    # Calculate number of tiles needed
+    max_tile_size = nl.tile_size.pmax
+    trip_count = math.ceil(sz / max_tile_size)
+    
+    # Process each tile
+    for p in nl.affine_range(trip_count):
+        # Calculate indices for current tile
+        start_idx = p * max_tile_size
+        i_p = start_idx + nl.arange(max_tile_size)
+        
+        # Load input data
+        x_tile = nl.load(a_tensor[i_p], mask=(i_p < sz))
+        
+        # Sort the tile
+        sorted_tile = _sort_tile(x_tile, mask=(i_p < sz))
+        
+        # Store sorted data
+        nl.store(result[i_p], value=sorted_tile, mask=(i_p < sz))
+
+def _sort_nd(a_tensor, result, dim):
+    """Sort a multi-dimensional tensor along specified dimension"""
+    tensor_shape = a_tensor.shape
+    sort_dim_size = tensor_shape[dim]
+    
+    # We'll process slices of the tensor, where each slice is along the sort dimension
+    if dim == 0:
+        # Special case for dim=0, we'll transpose the tensor to make it easier
+        _sort_nd_dim0(a_tensor, result)
+    else:
+        # For other dimensions, we'll iterate through all the indices except the sort dimension
+        _sort_nd_other_dim(a_tensor, result, dim)
+
+def _sort_nd_dim0(a_tensor, result):
+    """Sort a multi-dimensional tensor along dimension 0"""
+    tensor_shape = a_tensor.shape
+    sort_dim_size = tensor_shape[0]
+    other_dims_size = math.prod(tensor_shape[1:])
+    
+    # Calculate number of tiles needed
+    max_tile_size = nl.tile_size.pmax
+    trip_count_p = math.ceil(sort_dim_size / max_tile_size)
+    trip_count_f = math.ceil(other_dims_size / max_tile_size)
+    
+    # Generate indices for other dimensions
+    for f in nl.affine_range(trip_count_f):
+        f_start = f * max_tile_size
+        i_f = f_start + nl.arange(max_tile_size)
+        i_f_mask = i_f < other_dims_size
+        
+        # Load the slice, sort it, and store it back
+        slice_to_sort = nl.zeros((sort_dim_size,), dtype=a_tensor.dtype, buffer=nl.sbuf)
+        sorted_slice = nl.zeros((sort_dim_size,), dtype=a_tensor.dtype, buffer=nl.sbuf)
+        
+        # Load the slice
+        for p in nl.affine_range(trip_

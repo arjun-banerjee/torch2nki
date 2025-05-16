@@ -1,0 +1,86 @@
+# NKI Kernel for Cumulative Product (cumprod)
+
+I'll implement a kernel to calculate the cumulative product of an input tensor using the NKI API. This implementation will properly handle tensors of all sizes by using tiling to respect hardware limitations.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_cumprod(a_tensor):
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Get tensor shape
+    shape = a_tensor.shape
+    
+    # For 1D tensors
+    if len(shape) == 1:
+        sz = shape[0]
+        
+        # Process the tensor in manageable chunks
+        max_tile_size = nl.tile_size.pmax
+        trip_count = math.ceil(sz / max_tile_size)
+        
+        # Keep a running product
+        running_prod = nl.full((), 1, dtype=a_tensor.dtype)
+        
+        # Process each tile
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i = p * max_tile_size + nl.arange(max_tile_size)
+            
+            # Load input data for the current tile
+            x_tile = nl.load(a_tensor[i], mask=(i < sz))
+            
+            # Create output tile for this chunk
+            out_tile = nl.zeros((max_tile_size,), dtype=a_tensor.dtype)
+            
+            # Multiply each element by the running product and update running product
+            for j in nl.affine_range(min(max_tile_size, sz - p * max_tile_size)):
+                if j == 0:
+                    # First element in tile gets multiplied by running_prod from previous tiles
+                    out_tile_val = x_tile[j] * running_prod
+                else:
+                    # Other elements get multiplied by previous result in this tile
+                    out_tile_val = x_tile[j] * out_tile[j-1]
+                
+                # Store the result for this element
+                out_tile = nl.store(out_tile, j, out_tile_val)
+                
+                # Update running product for next tile if this is the last element
+                if j == min(max_tile_size, sz - p * max_tile_size) - 1:
+                    running_prod = out_tile_val
+            
+            # Store the results back to external memory
+            nl.store(result[i], value=out_tile, mask=(i < sz))
+    
+    # For 2D tensors - compute cumprod along last axis
+    elif len(shape) == 2:
+        sz_p, sz_f = shape
+        
+        # Calculate the number of tiles needed for partition dimension
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        # Process each tile along partition dimension
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Create output tile
+            out_tile = nl.zeros((nl.tile_size.pmax, sz_f), dtype=a_tensor.dtype)
+            
+            # For each row in the tile
+            for i in nl.affine_range(min(nl.tile_size.pmax, sz_p - p * nl.tile_size.pmax)):
+                # Initialize running product for this row
+                row_prod = nl.full((), 1, dtype=a_tensor.dtype)
+                
+                # Calculate cumulative product for this row
+                for j in nl.affine

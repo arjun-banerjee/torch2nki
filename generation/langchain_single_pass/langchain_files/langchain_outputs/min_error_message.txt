@@ -1,0 +1,3 @@
+Checking correctness of element-wise minimum operation...
+NKI and Torch match!
+

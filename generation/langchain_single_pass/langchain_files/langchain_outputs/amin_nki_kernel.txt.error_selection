@@ -1,0 +1,26 @@
+ERROR MESSAGE:
+Error running test: got an unexpected keyword argument 'dim'
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 2137, in test_torch_amin
+    output_small = nki_amin(x_small, dim=-1)
+  File "neuronxcc/nki/compile.py", line 94, in neuronxcc.nki.compile.GenericKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 103, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "/usr/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 265, in bind_arguments
+  File "/usr/lib/python3.10/inspect.py", line 3186, in bind
+    return self._bind(args, kwargs)
+  File "/usr/lib/python3.10/inspect.py", line 3175, in _bind
+    raise TypeError(
+TypeError: got an unexpected keyword argument 'dim'
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

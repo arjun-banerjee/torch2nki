@@ -1,0 +1,55 @@
+***I will implement a logsumexp NKI kernel that accepts a tensor and computes the logsumexp along the last dimension. The implementation will follow the standard algorithm: find the maximum value, subtract it from each element, compute exponentials, sum them, take the log, and add back the maximum - all while using proper tiling to respect hardware limitations.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_logsumexp(a_tensor):
+    # Get tensor dimensions
+    sz_p, sz_f = a_tensor.shape
+    
+    # Initialize result array with shape [sz_p, 1] since we're reducing along last dimension
+    result = nl.ndarray((sz_p, 1), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed
+    trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+    
+    # Generate the free dimension index array
+    i_f = nl.arange(sz_f)[None, :]
+    
+    # Process the tensor in tiles to respect hardware limitations
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for the current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+        
+        # Create mask for valid indices
+        mask = (i_p < sz_p)
+        
+        # Load input data from external memory to on-chip memory
+        x_tile = nl.load(a_tensor[i_p, i_f], mask=mask)
+        
+        # Find the maximum value along the last dimension
+        max_vals = nl.max(x_tile, axis=1, keepdims=True, mask=mask)
+        
+        # Subtract the maximum value from each element to prevent overflow
+        shifted = nl.subtract(x_tile, max_vals, mask=mask)
+        
+        # Compute exponentials of the shifted values
+        exp_vals = nl.exp(shifted, mask=mask)
+        
+        # Sum the exponentials along the last dimension
+        sum_exp = nl.sum(exp_vals, axis=1, keepdims=True, mask=mask)
+        
+        # Take the logarithm of the sum
+        log_sum = nl.log(sum_exp, mask=mask)
+        
+        # Add the maximum value back
+        logsumexp_result = nl.add(log_sum, max_vals, mask=mask)
+        
+        # Store the results back to external memory
+        nl.store(result[i_p, 0:1], value=logsumexp_result, mask=mask)
+    
+    return result
+```

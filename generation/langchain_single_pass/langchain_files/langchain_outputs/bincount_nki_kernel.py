@@ -1,0 +1,71 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_bincount(a_tensor):
+    # Get the size of the input tensor
+    input_size = a_tensor.shape[0]
+    
+    # First pass: Find the maximum value to determine output size
+    max_val = nl.zeros((), dtype=nl.int32, buffer=nl.psum)
+    
+    # Process the input tensor in tiles
+    trip_count = math.ceil(input_size / nl.tile_size.pmax)
+    
+    for p in nl.affine_range(trip_count):
+        # Generate indices for current tile
+        start_idx = p * nl.tile_size.pmax
+        end_idx = nl.minimum(start_idx + nl.tile_size.pmax, input_size)
+        size = end_idx - start_idx
+        
+        # Load current tile
+        i_p = nl.arange(nl.tile_size.pmax)
+        in_tile = nl.load(a_tensor[start_idx + i_p], mask=(i_p < size))
+        
+        # Find maximum value in this tile
+        for i in nl.affine_range(size):
+            val = nl.load(in_tile[i])
+            max_val = nl.maximum(max_val, val)
+    
+    # Create output tensor with size max_val + 1
+    output_size = max_val + 1
+    result = nl.ndarray((output_size,), dtype=nl.int32, buffer=nl.shared_hbm)
+    
+    # Initialize result with zeros
+    trip_count_out = math.ceil(output_size / nl.tile_size.pmax)
+    
+    for p in nl.affine_range(trip_count_out):
+        start_idx = p * nl.tile_size.pmax
+        end_idx = nl.minimum(start_idx + nl.tile_size.pmax, output_size)
+        size = end_idx - start_idx
+        
+        i_p = nl.arange(nl.tile_size.pmax)
+        zeros_tile = nl.zeros((nl.tile_size.pmax,), dtype=nl.int32)
+        nl.store(result[start_idx + i_p], zeros_tile, mask=(i_p < size))
+    
+    # Second pass: Count occurrences
+    for p in nl.affine_range(trip_count):
+        start_idx = p * nl.tile_size.pmax
+        end_idx = nl.minimum(start_idx + nl.tile_size.pmax, input_size)
+        size = end_idx - start_idx
+        
+        # Load current tile
+        i_p = nl.arange(nl.tile_size.pmax)
+        in_tile = nl.load(a_tensor[start_idx + i_p], mask=(i_p < size))
+        
+        # Process each element in the tile
+        for i in nl.affine_range(size):
+            # Get the value at position i
+            val = nl.load(in_tile[i])
+            
+            # Load current count
+            current_count = nl.load(result[val])
+            
+            # Increment count
+            new_count = current_count + 1
+            
+            # Store updated count
+            nl.store(result[val], new_count)
+    
+    return result

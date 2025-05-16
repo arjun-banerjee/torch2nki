@@ -1,0 +1,95 @@
+I'll implement a custom kernel for mean using AWS Neural Kernel Interface (NKI). The implementation will handle input tensors of all sizes by processing them in tiles.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_mean(a_tensor):
+    """
+    Calculate the mean of all elements in a tensor.
+    
+    Args:
+        a_tensor: Input tensor of any shape
+        
+    Returns:
+        A scalar value representing the mean of all elements
+    """
+    # Get the shape of the input tensor
+    tensor_shape = a_tensor.shape
+    
+    # Calculate the total number of elements in the tensor
+    total_elements = 1
+    for dim in tensor_shape:
+        total_elements *= dim
+    
+    # Initialize sum accumulator
+    sum_result = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+    
+    # If tensor is 1D, process it directly
+    if len(tensor_shape) == 1:
+        sz_p = tensor_shape[0]
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        for p in nl.affine_range(trip_count):
+            # Generate indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+            
+            # Load input data, masking to handle boundary conditions
+            x_tile = nl.load(a_tensor[i_p], mask=(i_p < sz_p))
+            
+            # Sum elements in the tile
+            sum_result += nl.sum(x_tile)
+    
+    # If tensor is 2D, process it in tiles
+    elif len(tensor_shape) == 2:
+        sz_p, sz_f = tensor_shape
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data, masking to handle boundary conditions
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Sum elements in the tile
+            sum_result += nl.sum(x_tile)
+    
+    # If tensor has more dimensions, flatten and process
+    else:
+        # Reshape tensor to 2D for processing
+        flattened_size = tensor_shape[0]
+        for i in range(1, len(tensor_shape)-1):
+            flattened_size *= tensor_shape[i]
+            
+        sz_p = flattened_size
+        sz_f = tensor_shape[-1]
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Calculate actual indices in the original tensor shape
+            # and load the data tile by tile
+            flat_indices = i_p.reshape(-1)
+            
+            # Create a reshaped view for loading
+            x_tile = nl.load(a_tensor.reshape(sz_p, sz_f)[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Sum elements in the tile
+            sum_result += nl.sum(x_tile)
+    
+    # Calculate mean by dividing the sum by the total number of elements
+    mean_result = sum_result / total_elements
+    
+    # Initialize result as a scalar
+    result = nl.zeros(

@@ -1,0 +1,70 @@
+***I'll implement a variance kernel that properly initializes the result variable using nl.ndarray, computes variance across all elements of a tensor using a two-pass algorithm (computing mean first, then squared differences), and handles large tensors with tiling.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_var(a_tensor):
+    # Get tensor dimensions
+    sz_p, sz_f = a_tensor.shape
+    total_elements = sz_p * sz_f
+    
+    # Initialize result array
+    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate the number of tiles needed based on hardware limitations
+    trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+    
+    # First pass: compute sum for mean calculation
+    sum_buffer = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+    
+    # Generate the free dimension index array
+    i_f = nl.arange(sz_f)[None, :]
+    
+    # Process the tensor in tiles to calculate sum
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+        
+        # Load input data from external memory
+        x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+        
+        # Sum all elements in the tile
+        tile_sum = nl.sum(x_tile, axis=1, mask=(i_p < sz_p))
+        
+        # Add to global sum
+        sum_buffer += nl.sum(tile_sum, axis=0)
+    
+    # Calculate mean
+    mean_value = sum_buffer / total_elements
+    
+    # Second pass: compute sum of squared differences
+    squared_diff_sum = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+    
+    # Process the tensor in tiles to calculate squared differences
+    for p in nl.affine_range(trip_count):
+        # Generate tensor indices for current tile
+        i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+        
+        # Load input data from external memory
+        x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+        
+        # Calculate squared differences from mean
+        diff_tile = nl.multiply(nl.subtract(x_tile, mean_value), nl.subtract(x_tile, mean_value), mask=(i_p < sz_p))
+        
+        # Sum squared differences in the tile
+        tile_sum = nl.sum(diff_tile, axis=1, mask=(i_p < sz_p))
+        
+        # Add to global sum of squared differences
+        squared_diff_sum += nl.sum(tile_sum, axis=0)
+    
+    # Calculate variance (sum of squared differences divided by count)
+    variance = squared_diff_sum / total_elements
+    
+    # Store result
+    nl.store(result, variance)
+    
+    return result
+```

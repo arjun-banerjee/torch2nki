@@ -1,0 +1,19 @@
+Error running test: Hardware Requirement Violated: PSUM Tensor can only be fp32 or int32!
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 1649, in test_torch_sum
+    output_small = nki_sum(x_small)
+  File "neuronxcc/nki/compile.py", line 94, in neuronxcc.nki.compile.GenericKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 103, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 105, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/FrameworkKernel.py", line 287, in neuronxcc.nki.compiler.backends.neuron.FrameworkKernel.FrameworkKernel.dump_config_with_boundargs
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/sum_nki_kernel.py", line 8, in nki_sum
+    acc_sum = nl.zeros((1,), dtype=a_tensor.dtype, buffer=nl.psum)
+TypeError: Hardware Requirement Violated: PSUM Tensor can only be fp32 or int32!

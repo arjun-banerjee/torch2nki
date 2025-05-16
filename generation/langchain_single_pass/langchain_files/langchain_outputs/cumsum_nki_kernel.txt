@@ -1,0 +1,85 @@
+I'll implement an efficient cumsum kernel using AWS Neural Kernel Interface (NKI). Let me focus on creating a solution that properly handles all tensor sizes and uses appropriate NKI functions.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_cumsum(a_tensor):
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Get shape information
+    shape = a_tensor.shape
+    
+    # Handle 1D tensor case
+    if len(shape) == 1:
+        size = shape[0]
+        
+        # Process the tensor in chunks to respect hardware limitations
+        trip_count = math.ceil(size / nl.tile_size.pmax)
+        
+        # Create an accumulator for the running sum across chunks
+        running_sum = nl.zeros((), dtype=a_tensor.dtype)
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            start_idx = p * nl.tile_size.pmax
+            i_p = start_idx + nl.arange(nl.tile_size.pmax)
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[i_p], mask=(i_p < size))
+            
+            # Create output tile for this chunk
+            out_tile = nl.zeros((nl.tile_size.pmax), dtype=a_tensor.dtype)
+            
+            # First element adds the running sum
+            if start_idx > 0:
+                out_tile[0] = nl.add(x_tile[0], running_sum)
+            else:
+                out_tile[0] = x_tile[0]
+            
+            # Compute cumulative sum within this chunk
+            for i in nl.affine_range(1, nl.tile_size.pmax):
+                # Only process if within bounds
+                if start_idx + i < size:
+                    out_tile[i] = nl.add(out_tile[i-1], x_tile[i])
+            
+            # Update the running sum for the next chunk
+            if size > start_idx:
+                last_valid_idx = min(nl.tile_size.pmax, size - start_idx) - 1
+                running_sum = out_tile[last_valid_idx]
+            
+            # Store results back to external memory
+            nl.store(result[i_p], value=out_tile, mask=(i_p < size))
+    
+    # Handle 2D tensor case
+    elif len(shape) == 2:
+        sz_p, sz_f = shape
+        
+        # Process the tensor in tiles to respect hardware limitations
+        trip_count = math.ceil(sz_p / nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        # Create an accumulator for the running sum across chunks
+        running_sum = nl.zeros((1, sz_f), dtype=a_tensor.dtype)
+        
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            start_idx = p * nl.tile_size.pmax
+            i_p = start_idx + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Create output tile for this chunk
+            out_tile = nl.zeros((nl.tile_size.pmax, sz_f), dtype=a_tensor.dtype)
+            
+            # First row adds the running sum from previous chunk
+            if start_idx > 0:
+                first_row = nl.add(x_tile[0:1, :], running_sum)
+                out_tile[0:1, :] = first_row

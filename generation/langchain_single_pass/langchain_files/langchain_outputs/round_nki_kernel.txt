@@ -1,0 +1,76 @@
+***I'll implement a round function using NKI that handles tensors of all sizes through tiling. The implementation will use nl.floor for positive values (adding 0.5) and nl.ceil for negative values (subtracting 0.5), properly handling the decimals parameter by multiplying/dividing by 10^decimals.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_round(a_tensor, decimals=0):
+    # Initialize result array with same shape and dtype as input
+    result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Calculate scaling factor based on decimals
+    multiplier = nl.power(10.0, decimals)
+    
+    # Calculate the number of tiles needed
+    if len(a_tensor.shape) == 1:
+        sz_p = a_tensor.shape[0]
+        trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+        
+        # Process 1D tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[i_p], mask=(i_p < sz_p))
+            
+            # Scale by multiplier for decimal handling
+            x_scaled = nl.multiply(x_tile, multiplier)
+            
+            # Round values: floor(x + 0.5) for positive, ceil(x - 0.5) for negative
+            pos_mask = nl.greater_equal(x_scaled, 0.0)
+            neg_mask = nl.less(x_scaled, 0.0)
+            
+            # Apply appropriate rounding method based on sign
+            pos_result = nl.floor(nl.add(x_scaled, 0.5))
+            neg_result = nl.ceil(nl.add(x_scaled, -0.5))
+            
+            # Combine results based on sign masks
+            rounded = nl.add(
+                nl.multiply(pos_result, nl.cast(pos_mask, dtype=x_tile.dtype)),
+                nl.multiply(neg_result, nl.cast(neg_mask, dtype=x_tile.dtype))
+            )
+            
+            # Scale back by dividing by multiplier
+            out_tile = nl.divide(rounded, multiplier)
+            
+            # Store the results back to external memory
+            nl.store(result[i_p], value=out_tile, mask=(i_p < sz_p))
+    else:
+        sz_p, sz_f = a_tensor.shape
+        trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+        
+        # Generate the free dimension index array
+        i_f = nl.arange(sz_f)[None, :]
+        
+        # Process 2D tensor in tiles
+        for p in nl.affine_range(trip_count):
+            # Generate tensor indices for the current tile
+            i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+            
+            # Load input data from external memory to on-chip memory
+            # Only load up to the actual size of the tensor
+            x_tile = nl.load(a_tensor[i_p, i_f], mask=(i_p < sz_p))
+            
+            # Scale by multiplier for decimal handling
+            x_scaled = nl.multiply(x_tile, multiplier)
+            
+            # Round values: floor(x + 0.5) for positive, ceil(x - 0.5) for negative
+            pos_mask = nl.greater_equal(x_scaled, 0.0)
+            neg_mask = nl.less(x_scaled, 0.0)
+            
+            # Apply appropriate rounding method based on sign
+            pos_result = nl.floor(nl.add(

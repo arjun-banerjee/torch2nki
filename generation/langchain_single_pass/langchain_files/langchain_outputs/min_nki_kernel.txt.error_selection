@@ -1,0 +1,26 @@
+ERROR MESSAGE:
+Error running test: too many positional arguments
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 1633, in test_torch_min
+    output_small = nki_min(x_small, y_small)
+  File "neuronxcc/nki/compile.py", line 94, in neuronxcc.nki.compile.GenericKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 103, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "/usr/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 265, in bind_arguments
+  File "/usr/lib/python3.10/inspect.py", line 3186, in bind
+    return self._bind(args, kwargs)
+  File "/usr/lib/python3.10/inspect.py", line 3107, in _bind
+    raise TypeError('too many positional arguments') from None
+TypeError: too many positional arguments
+
+
+SELECTED ERRORS:
+
+
+ERROR DOCUMENTATION:
+
+

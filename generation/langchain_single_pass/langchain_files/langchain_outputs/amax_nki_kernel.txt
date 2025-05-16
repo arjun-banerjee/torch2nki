@@ -1,0 +1,64 @@
+***I will implement an NKI kernel for amax that finds the maximum value across all dimensions of a tensor. The implementation will handle tensors of any size by tiling to respect hardware limitations and use nl.max to perform efficient reduction operations across dimensions.***
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_amax(a_tensor):
+    # Get tensor shape information
+    shape = a_tensor.shape
+    
+    # For a scalar input, just return the value
+    if len(shape) == 0:
+        return nl.load(a_tensor)
+    
+    # Initialize result with the smallest possible value for the given dtype
+    result = nl.ndarray((), dtype=a_tensor.dtype, buffer=nl.shared_hbm)
+    
+    # Flatten the tensor dimensions to simplify processing
+    flat_size = 1
+    for dim in shape:
+        flat_size *= dim
+        
+    # Number of elements per tile (respecting hardware limitations)
+    tile_size = nl.tile_size.pmax
+    
+    # Calculate the number of tiles needed
+    trip_count = math.ceil(flat_size / tile_size)
+    
+    # Initial maximum value set to minimum possible value for the data type
+    if a_tensor.dtype in [nl.float32, nl.float16, nl.bfloat16, nl.tfloat32, nl.float8_e4m3, nl.float8_e5m2]:
+        max_val = nl.full((), float('-inf'), dtype=a_tensor.dtype)
+    else:
+        # For integer types
+        max_val = nl.full((), -2147483648, dtype=a_tensor.dtype)
+    
+    # Process the tensor in tiles
+    for p in nl.affine_range(trip_count):
+        # Calculate indices for the current tile
+        start_idx = p * tile_size
+        indices = start_idx + nl.arange(tile_size)
+        
+        # Create mask for valid indices
+        mask = indices < flat_size
+        
+        # Calculate multi-dimensional indices from flattened indices
+        # This is a simplified approach - we just need to load the elements
+        flat_indices = indices[mask]
+        
+        # Load the tile from the tensor
+        tile_values = nl.load(a_tensor.reshape(flat_size)[flat_indices], mask=mask)
+        
+        # Find the maximum value in this tile
+        tile_max = nl.max(tile_values, axis=0)
+        
+        # Update the overall maximum if this tile's maximum is larger
+        max_val = nl.maximum(max_val, tile_max)
+    
+    # Store the final result
+    nl.store(result, max_val)
+    
+    return result
+```

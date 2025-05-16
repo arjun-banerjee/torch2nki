@@ -1,0 +1,3 @@
+Checking correctness of log softmax operation...
+NKI and Torch match!
+
