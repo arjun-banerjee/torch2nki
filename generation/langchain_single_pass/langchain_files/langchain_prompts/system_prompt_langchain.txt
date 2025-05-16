@@ -14,6 +14,95 @@ However I repeat if you are returning an array, you  must initialize the array  
 result = nl.ndarray(a_tensor.shape, dtype=a_tensor.dtype, buffer=nl.shared_hbm)
 
 MUST READ:
+If you encounter this error:
+AssertionError: unexpected type <class 'neuronxcc.nki.compiler.backends.neuron.indexing.arange'>
+
+Reread this section on API Masking to resolve the issue.
+NKI API Masking
+All nki.language and nki.isa APIs accept an optional input field, mask. The mask field is an execution predicate known at compile-time, which informs the compiler to skip generating the instruction or generate the instruction with a smaller input tile shape. Masking is handled completely by Neuron compiler and hence does not incur any performance overhead in the generated instructions.
+
+The mask can be created using comparison expressions (e.g., a < b) or multiple comparison expressions concatenated with & (e.g., (a < b) & (c > d)). The left- or right-hand side expression of each comparator must be an affine expression of nki.language.arange(), nki.language.affine_range() or nki.language.program_id() . Each comparison expression should indicate which range of indices along one of the input tile axes should be valid for the computation. For example, assume we have an input tile in_tile of shape (128, 512), and we would like to perform a square operation on this tile for elements in [0:64, 0:256], we can invoke the nki.language.square() API using the following:
+
+import neuronxcc.nki.language as nl
+
+...
+i_p = nl.arange(128)[:, None]
+i_f = nl.arange(512)[None, :]
+
+out_tile = nl.square(in_tile, mask=((i_p<64) & (i_f<256)))
+The above example will be lowered into a hardware ISA instruction that only processes 64x256 elements by Neuron Compiler.
+
+The above mask definition works for most APIs where there is only one input tile or both input tiles share the same axes. One exception is the nki.language.matmul and similarly nki.isa.nc_matmul API, where the two input tiles lhs and rhs contain three unique axes:
+
+The contraction axis: both lhs and rhs partition axis (lhs_rhs_p)
+
+The first axis of matmul output: lhs free axis (lhs_f)
+
+The second axis of matmul output: rhs free axis (rhs_f)
+
+As an example, let’s assume we have lhs tile of shape (sz_p, sz_m) and rhs tile of shape (sz_p, sz_n), and we call nki.language.matmul to calculate an output tile of shape (sz_m, sz_n):
+
+import neuronxcc.nki.language as nl
+
+i_p = nl.arange(sz_p)[:, None]
+
+i_lhs_f = nl.arange(sz_m)[None, :]
+i_rhs_f = nl.arange(sz_n)[None, :] # same as `i_rhs_f = i_lhs_f`
+
+result = nl.matmul(lhs[i_p, i_lhs_f], rhs[i_p, i_rhs_f], transpose_x=True)
+Since both i_lhs_f and i_rhs_f are identical to the Neuron Compiler, the Neuron Compiler cannot distinguish the two input axes if they were to be passed into the mask field directly.
+
+Therefore, we introduce “operand masking” syntax for matmult APIs to let users to precisely define the masking on the inputs to the matmult APIs (currently only matmult APIs support operand masking, subject to changes in future releases). Let’s assume we need to constraint sz_m <= 64 and sz_n <= 256:
+
+import neuronxcc.nki.language as nl
+
+i_p = nl.arange(sz_p)[:, None]
+
+i_lhs_f = nl.arange(sz_m)[None, :]
+i_rhs_f = nl.arange(sz_n)[None, :] # same as `i_rhs_f = i_lhs_f`
+
+i_lhs_f_virtual = nl.arange(sz_m)[None, :, None]
+
+result = nl.matmul(lhs_T[i_lhs_f <= 64], rhs[i_rhs_f <= 256], transpose_x=True)
+There are two notable use cases for masking:
+
+When the tiling factor doesn’t divide the tensor dimension sizes
+
+Skip ineffectual instructions that compute known output values
+
+We will present an example of the first use case below. Let’s assume we would like to evaluate the exponential function on an input tensor of shape [sz_p, sz_f] from HBM. Since the input to nki.language.load/nki.language.store/nki.language.exp expects a tile with a partition axis size not exceeding nki.language.tile_size.pmax == 128, we should loop over the input tensor using a tile size of [nki.language.tile_size.pmax, sz_f].
+
+However, sz_p is not guaranteed to be an integer multiple of nki.language.tile_size.pmax. In this case, one option is to write a loop with trip count of sz_p // nki.language.tile_size.pmax followed by a single invocation of nki.language.exp with an input tile of shape [sz_p % nki.language.tile_size.pmax, sz_f]. This effectively “unrolls” the last instance of tile computation, which could lead to messy code in a complex kernel. Using masking here will allow us to avoid such unrolling, as illustrated in the example below:
+
+import neuronxcc.nki.language as nl
+from torch_neuronx import nki_jit
+
+@nki_jit
+def tensor_exp_kernel_(in_tensor, out_tensor):
+
+sz_p, sz_f = in_tensor.shape
+
+i_f = nl.arange(sz_f)[None, :]
+
+trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+
+for p in nl.affine_range(trip_count):
+    # Generate tensor indices for the input/output tensors
+    # pad index to pmax, for simplicity
+    i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+
+    # Load input data from external memory to on-chip memory
+    # only read up to sz_p
+    in_tile = nl.load(in_tensor[i_p, i_f], mask=(i_p < sz_p))
+
+    # perform the computation
+    out_tile = nl.exp(in_tile)
+
+    # store the results back to external memory
+    # only write up to sz_p
+    nl.store(out_tensor[i_p, i_f], value=out_tile, mask=(i_p<sz_p))
+
+MUST READ:
 Your implementation must be able to handle input tensors of all sizes, including ones that exceed the architecture limitation of 128. Here is an example of a NKI kernel for cosine that handles this correctly.
 ```python
     from neuronxcc import nki

@@ -1,0 +1,108 @@
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+import math
+
+@nki.jit
+def nki_conv1d(x, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
+    """Applies a 1D convolution over an input tensor.
+    
+    Args:
+        x: Input tensor of shape [batch_size, in_channels, sequence_length]
+        weight: Filter tensor of shape [out_channels, in_channels/groups, kernel_size]
+        bias: Optional bias tensor of shape [out_channels]
+        stride: Stride of the convolution (default: 1)
+        padding: Zero-padding added to both sides of the input (default: 0)
+        dilation: Spacing between kernel elements (default: 1)
+        groups: Number of blocked connections from input to output channels (default: 1)
+        
+    Returns:
+        Output tensor of shape [batch_size, out_channels, output_sequence_length]
+    """
+    # Extract dimensions
+    batch_size, in_channels, in_length = x.shape
+    out_channels, in_channels_per_group, kernel_size = weight.shape
+    
+    # Verify groups parameter is valid
+    assert in_channels % groups == 0
+    assert out_channels % groups == 0
+    assert in_channels_per_group == in_channels // groups
+    
+    # Calculate output dimensions
+    out_length = (in_length + 2 * padding - dilation * (kernel_size - 1) - 1) // stride + 1
+    
+    # Initialize result tensor
+    result = nl.ndarray((batch_size, out_channels, out_length), dtype=x.dtype, buffer=nl.shared_hbm)
+    
+    # Process in tiles to handle large inputs
+    max_batch_tile = min(batch_size, nl.tile_size.pmax)
+    
+    # Process batch dimension in tiles if needed
+    for b_start in nl.affine_range(math.ceil(batch_size / max_batch_tile)):
+        b_end = min(batch_size, (b_start + 1) * max_batch_tile)
+        b_size = b_end - b_start * max_batch_tile
+        
+        # Process output channels in tiles if needed
+        for o_start in nl.affine_range(math.ceil(out_channels / nl.tile_size.pmax)):
+            o_end = min(out_channels, (o_start + 1) * nl.tile_size.pmax)
+            o_size = o_end - o_start * nl.tile_size.pmax
+            
+            # Indices for accessing the current batch and output channel tiles
+            i_b = b_start * max_batch_tile + nl.arange(b_size)[:, None, None]
+            i_o = o_start * nl.tile_size.pmax + nl.arange(o_size)[None, :, None]
+            i_p = nl.arange(out_length)[None, None, :]
+            
+            # Initialize output tile for the current batch and output channel
+            out_tile = nl.zeros((b_size, o_size, out_length), dtype=x.dtype)
+            
+            # Process groups
+            for g in nl.affine_range(groups):
+                # Calculate input and output channel indices for this group
+                i_start = g * in_channels_per_group
+                i_end = (g + 1) * in_channels_per_group
+                o_group_start = o_start * nl.tile_size.pmax + g * (out_channels // groups)
+                o_group_end = min(o_end, o_group_start + (out_channels // groups))
+                o_group_size = o_group_end - o_group_start
+                
+                if o_group_size <= 0:
+                    continue
+                    
+                # Adjust output channel index for this group
+                i_o_group = nl.arange(o_group_size)[None, :, None]
+                
+                # Process kernels by sliding window
+                for k in nl.affine_range(kernel_size):
+                    # Calculate input position with padding, stride and dilation
+                    input_pos = i_p * stride + k * dilation - padding
+                    
+                    # Create mask for valid positions (avoiding padding areas)
+                    valid_pos = (input_pos >= 0) & (input_pos < in_length)
+                    
+                    # Process input channels in tiles if needed
+                    for i in nl.affine_range(in_channels_per_group):
+                        # Load input data from valid positions
+                        in_idx = i_b, i_start + i, input_pos
+                        in_tile = nl.load(x[in_idx], mask=valid_pos)
+                        
+                        # Load weight data
+                        weight_idx = o_group_start + i_o_group[:, :, 0], i, k
+                        weight_tile = nl.load(weight[weight_idx])
+                        
+                        # Perform convolution (multiply and add)
+                        prod = nl.multiply(in_tile, weight_tile[:, None, :])
+                        out_tile[:, o_group_start - o_start * nl.tile_size.pmax:o_group_end - o_start * nl.tile_size.pmax, :] = nl.add(
+                            out_tile[:, o_group_start - o_start * nl.tile_size.pmax:o_group_end - o_start * nl.tile_size.pmax, :],
+                            prod,
+                            mask=valid_pos
+                        )
+            
+            # Add bias if provided
+            if bias is not None:
+                bias_tile = nl.load(bias[o_start * nl.tile_size.pmax:o_end])
+                bias_broadcast = bias_tile[None, :, None]
+                out_tile = nl.add(out_tile, bias_broadcast)
+            
+            # Store result
+            out_idx = i_b, i_o[:, :, 0], i_p
+            nl.store(result[out_idx], value=out_tile, mask=(i_b[:, 0, 0] < batch_size) & (i_o[0, :, 0] < out_channels))
+    
+    return result

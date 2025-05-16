@@ -1,0 +1,19 @@
+Error running test: shape element must be integers: (<neuronxcc.nki.compiler.backends.neuron.indexing.Index object at 0x7f0330dbcd80>, <neuronxcc.nki.compiler.backends.neuron.indexing.Index object at 0x7f0330dbd700>)
+
+Traceback (most recent call last):
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/extraction.py", line 155, in run
+    test_func(self.device, kernel_func)
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/tests.py", line 3347, in test_torch_conv1d
+    output_nki   = nki_conv1d(x, weight, bias, stride, padding, dilation, groups)
+  File "neuronxcc/nki/compile.py", line 94, in neuronxcc.nki.compile.GenericKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 103, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/_torch_xla.py", line 105, in neuronxcc.nki._torch_xla.PyTorchXLAKernel.__call__
+  File "neuronxcc/nki/compiler/backends/neuron/FrameworkKernel.py", line 287, in neuronxcc.nki.compiler.backends.neuron.FrameworkKernel.FrameworkKernel.dump_config_with_boundargs
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 376, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 378, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.specialize_and_call
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 386, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 403, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "neuronxcc/nki/compiler/backends/neuron/TraceKernel.py", line 391, in neuronxcc.nki.compiler.backends.neuron.TraceKernel.TraceKernel.expand_kernel_with_ctx
+  File "/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/conv1d_nki_kernel_attempt_0.py", line 31, in nki_conv1d
+    out_tile = nl.zeros((oc_size, ol_size), dtype=x.dtype, buffer=nl.sbuf)
+TypeError: shape element must be integers: (<neuronxcc.nki.compiler.backends.neuron.indexing.Index object at 0x7f0330dbcd80>, <neuronxcc.nki.compiler.backends.neuron.indexing.Index object at 0x7f0330dbd700>)

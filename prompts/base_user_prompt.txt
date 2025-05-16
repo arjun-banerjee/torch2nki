@@ -1,0 +1,991 @@
+Don't use libnrt.so.1
+
+Make sure to return the output. Make sure to import nki: from neuronxcc import nki
+YOU DO NOT NEED TO PUT THE RETURN VARIABLE IN THE PARAMETERS. SIMPLY RETRUN RESULT AFTER STORING THE 
+ANSWER FROM A DUMMY VARIABLE INTO RESULT. I REPEAT, YOU MUST HAVE THE LINE "return result" AS THE LAST LINE OF THE KERNEL.
+YOU SHOULD BE INITIALIZING A RESULT VARIABLE, THEN DOING THE OPERATION THROUGH A DUMMY VARIABLE, THEN STORING THE 
+DUMMY VARIABLE IN THE RESULT VARIABLE YOU ALREADY INITIALIZED, THEN RETURN THE RESULT.
+
+Here is an example for the dot product vector. The code for the vector abs does not have to relate
+at all or follow the same format, I am simply giving it to you so you can understand how the inputs and outputs
+to nki kernels work. for example, we should always be returning a result especially.
+Specifically, you do not need to use for i in range for this implementation. use the implementation 
+from the documentation and see if you can do it more simply.
+
+```python
+from neuronxcc import nki
+import neuronxcc.nki.language as nl
+
+@nki.jit
+def nki_dot_product(a_tensor, b_tensor):
+    # Ensure both tensors are 1D
+    if a_tensor.shape[0] != b_tensor.shape[0]:
+        raise ValueError("Vectors must be of the same length")
+        
+    # Initialize a scalar to hold the sum result
+    sum_result = nl.zeros((), dtype=nl.float32, buffer=nl.psum)
+
+    # Process the dot product
+    for i in nl.affine_range(a_tensor.shape[0]):
+        a_value = nl.load(a_tensor[i])
+        b_value = nl.load(b_tensor[i])
+        sum_result += nl.multiply(a_value, b_value)
+
+    return sum_result
+
+    
+### The following is NKI documentation you may find useful:
+Supported Data Types
+
+Below lists all supported data types by NKI. Almost all the NKI APIs accept a data type field, dtype, which can either be a NumPy equivalent type or a nki.language data type.
+
+Accepted dtype Field by NKI APIs:
+----------------------------------------------
+Integer:
+- 8-bit unsigned integer: nki.language.uint8, numpy.uint8
+- 8-bit signed integer: nki.language.int8, numpy.int8
+- 16-bit unsigned integer: nki.language.uint16, numpy.uint16
+- 16-bit signed integer: nki.language.int16, numpy.int16
+- 32-bit unsigned integer: nki.language.uint32, numpy.uint32
+- 32-bit signed integer: nki.language.int32, numpy.int32
+
+Float:
+- float8_e4m3 (1S,4E,3M): nki.language.float8_e4m3
+- float8_e5m2 (1S,5E,2M): nki.language.float8_e5m2
+- float16 (1S,5E,10M): nki.language.float16, numpy.float16
+- bfloat16 (1S,8E,7M): nki.language.bfloat16
+- tfloat32 (1S,8E,10M): nki.language.tfloat32
+- float32 (1S,8E,23M): nki.language.float32, numpy.float32
+
+Boolean:
+- boolean stored as uint8: nki.language.bool_, numpy.bool
+
+S: sign bits, E: exponent bits, M: mantissa bits
+
+
+
+NKI API Masking
+
+All nki.language and nki.isa APIs accept an optional input field, mask. The mask field is an execution predicate known at compile-time, which informs the compiler to skip generating the instruction or generate the instruction with a smaller input tile shape. Masking is handled completely by Neuron compiler and hence does not incur any performance overhead in the generated instructions.
+
+The mask can be created using comparison expressions (e.g., a < b) or multiple comparison expressions concatenated with & (e.g., (a < b) & (c > d)). The left- or right-hand side expression of each comparator must be an affine expression of nki.language.arange(), nki.language.affine_range() or nki.language.program_id() . Each comparison expression should indicate which range of indices along one of the input tile axes should be valid for the computation. For example, assume we have an input tile in_tile of shape (128, 512), and we would like to perform a square operation on this tile for elements in [0:64, 0:256], we can invoke the nki.language.square() API using the following:
+
+import neuronxcc.nki.language as nl
+
+...
+i_p = nl.arange(128)[:, None]
+i_f = nl.arange(512)[None, :]
+
+out_tile = nl.square(in_tile, mask=((i_p<64) & (i_f<256)))
+
+The above example will be lowered into a hardware ISA instruction that only processes 64x256 elements by Neuron Compiler.
+
+The above mask definition works for most APIs where there is only one input tile or both input tiles share the same axes. One exception is the nki.language.matmul and similarly nki.isa.nc_matmul API, where the two input tiles lhs and rhs contain three unique axes:
+
+The contraction axis: both lhs and rhs partition axis (lhs_rhs_p)
+
+The first axis of matmul output: lhs free axis (lhs_f)
+
+The second axis of matmul output: rhs free axis (rhs_f)
+
+As an example, let’s assume we have lhs tile of shape (sz_p, sz_m) and rhs tile of shape (sz_p, sz_n), and we call nki.language.matmul to calculate an output tile of shape (sz_m, sz_n):
+
+import neuronxcc.nki.language as nl
+
+i_p = nl.arange(sz_p)[:, None]
+
+i_lhs_f = nl.arange(sz_m)[None, :]
+i_rhs_f = nl.arange(sz_n)[None, :] # same as `i_rhs_f = i_lhs_f`
+
+result = nl.matmul(lhs[i_p, i_lhs_f], rhs[i_p, i_rhs_f], transpose_x=True)
+
+Since both i_lhs_f and i_rhs_f are identical to the Neuron Compiler, the Neuron Compiler cannot distinguish the two input axes if they were to be passed into the mask field directly.
+
+Therefore, we introduce “operand masking” syntax for matmult APIs to let users to precisely define the masking on the inputs to the matmult APIs (currently only matmult APIs support operand masking, subject to changes in future releases). Let’s assume we need to constraint sz_m <= 64 and sz_n <= 256:
+
+import neuronxcc.nki.language as nl
+
+i_p = nl.arange(sz_p)[:, None]
+
+i_lhs_f = nl.arange(sz_m)[None, :]
+i_rhs_f = nl.arange(sz_n)[None, :] # same as `i_rhs_f = i_lhs_f`
+
+i_lhs_f_virtual = nl.arange(sz_m)[None, :, None]
+
+result = nl.matmul(lhs_T[i_lhs_f <= 64], rhs[i_rhs_f <= 256], transpose_x=True)
+
+There are two notable use cases for masking:
+1. When the tiling factor doesn’t divide the tensor dimension sizes
+2. Skip ineffectual instructions that compute known output values
+
+We will present an example of the first use case below. Let’s assume we would like to evaluate the exponential function on an input tensor of shape [sz_p, sz_f] from HBM. Since the input to nki.language.load/nki.language.store/nki.language.exp expects a tile with a partition axis size not exceeding nki.language.tile_size.pmax == 128, we should loop over the input tensor using a tile size of [nki.language.tile_size.pmax, sz_f].
+
+However, sz_p is not guaranteed to be an integer multiple of nki.language.tile_size.pmax. In this case, one option is to write a loop with trip count of sz_p // nki.language.tile_size.pmax followed by a single invocation of nki.language.exp with an input tile of shape [sz_p % nki.language.tile_size.pmax, sz_f]. This effectively “unrolls” the last instance of tile computation, which could lead to messy code in a complex kernel. Using masking here will allow us to avoid such unrolling, as illustrated in the example below:
+
+import neuronxcc.nki.language as nl
+from torch_neuronx import nki_jit
+
+@nki_jit
+def tensor_exp_kernel_(in_tensor, out_tensor):
+
+sz_p, sz_f = in_tensor.shape
+
+i_f = nl.arange(sz_f)[None, :]
+
+trip_count = math.ceil(sz_p/nl.tile_size.pmax)
+
+for p in nl.affine_range(trip_count):
+    # Generate tensor indices for the input/output tensors
+    # pad index to pmax, for simplicity
+    i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+
+    # Load input data from external memory to on-chip memory
+    # only read up to sz_p
+    in_tile = nl.load(in_tensor[i_p, i_f], mask=(i_p < sz_p))
+
+    # perform the computation
+    out_tile = nl.exp(in_tile)
+
+    # store the results back to external memory
+    # only write up to sz_p
+    nl.store(out_tensor[i_p, i_f], value=out_tile, mask=(i_p<sz_p))
+
+NKI Type Promotion
+
+When the data types (dtypes) of inputs to an arithmetic operation (i.e., add, multiply, tensor_tensor, etc.) differ, we promote the dtypes following the rules below:
+
+(float, integer): Pick the float type.
+Example:
+(np.int32, np.float16) -> np.float16
+(np.uint16, nl.tfloat32) -> nl.tfloat32
+
+(float, float): Pick the wider float type or a new widened type that fits the values range.
+Example:
+(np.float32, nl.tfloat32) -> np.float32
+(np.float32, nl.bfloat16) -> np.float32
+(np.float16, nl.bfloat16) -> np.float32 (new widened type)
+(nl.float8_e4m3, np.float16) -> np.float16
+(nl.float8_e4m3, nl.bfloat16) -> nl.bfloat16
+(nl.float8_e4m3, nl.float8_e5m2) -> nl.bfloat16 (new widened type)
+
+(int, int): Pick the wider type or a new widened type that fits the values range.
+Example:
+(np.int16, np.int32) -> np.int32
+(np.uint8, np.uint16) -> np.uint16
+(np.uint16, np.int32) -> np.int32
+(np.int8, np.uint8) -> np.int16 (new widened type)
+(np.int8, np.uint16) -> np.int32 (new widened type)
+(np.int32, np.uint32) -> np.float32 (new widened type is float32, since int64 isn’t supported on the hardware)
+
+The output of the arithmetic operation will get the promoted type by default.
+
+Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
+x = np.ndarray((N, M), dtype=nl.float8_e4m3)
+y = np.ndarray((N, M), dtype=np.float16)
+z = nl.add(x, y) # calculation done in FP32, output cast to np.float16
+assert z.dtype == np.float16
+
+To prevent the compiler from automatically widening output dtype based on mismatching input dtypes, you may explicitly set the output dtype in the arithmetic operation API. This would be useful if the output is passed into another operation that benefits from a smaller dtype.
+
+x = np.ndarray((N, M), dtype=nl.bfloat16)
+y = np.ndarray((N, M), dtype=np.float16)
+z = nl.add(x, y, dtype=nl.bfloat16)  # without explicit `dtype`, `z.dtype` would have been np.float32
+assert z.dtype == nl.bfloat16
+
+
+Weakly typed scalars (scalar values where the type wasn’t explicitly specified) will be inferred as the widest dtype supported by hardware:
+bool --> uint8
+integer --> int32
+floating --> float32
+
+Doing an arithmetic operation with a scalar may result in a larger output type than expected, for example:
+(np.int8, 2) -> np.int32
+(np.float16, 1.2) -> np.float32
+
+To prevent larger dtypes from being inferred from weak scalar types, do either of:
+
+1. Explicitly set the datatype of the scalar, like np.int8(2), so that the output type is what you desire:
+x = np.ndarray((N, M), dtype=np.float16)
+y = np.float16(2)
+z = nl.add(x, y)
+assert z.dtype == np.float16
+
+2. Explicitly set the output dtype of the arithmetic operation:
+x = np.ndarray((N, M), dtype=np.int16)
+y = 2
+z = nl.add(x, y, dtype=nl.bfloat16)
+assert z.dtype == nl.bfloat16
+
+Note: The Vector Engine internally performs most of the computation in FP32 (see Vector Engine) and casts the output back to the specific type.
+
+NKI Programming Model
+The NKI programming model enables developers to create custom kernels to program NeuronCores, where every kernel consists of three main stages:
+Loading of inputs from device memory (High Bandwidth Memory, or HBM) to the on-chip SRAM (State Buffer, or SBUF).
+Computation definition, to be executed on the NeuronCore compute engines.
+Storing of outputs from on-chip SRAM (SBUF) back to device memory (HBM).
+Fig. 10 below is a simplified diagram of a NeuronCore along with its attached HBM device memory. NKI kernels in current release can target a single NeuronCore-v2 or up to two NeuronCore-v3.
+As shown in Fig. 10, a single NeuronCore consists of two on-chip SRAMs (SBUF and PSUM) and four heterogenous compute engines: the Tensor Engine, Vector Engine, Scalar Engine, and GpSimd Engine. For more information about the compute engine capabilities, see NeuronDevice Architecture Guide. Next, let’s dive into the memory hierarchy design of NeuronCore, which provides the necessary architecture knowledge to understand the NKI programming model.
+
+Fig. 10 NeuronCore Architecture (multiple NeuronCores available per NeuronDevice)
+This image provides a block diagram illustrating the internal architecture of a NeuronCore. The NeuronCore is depicted as a central processing unit that interfaces with a High-Bandwidth Memory (HBM) module at the bottom.
+Within the NeuronCore, several key functional units are shown:
+SBUF: A large, light blue block labeled "SBUF" is connected to the HBM via bidirectional arrows, indicating data transfer between the on-chip buffer and the high-bandwidth memory. The SBUF also has bidirectional connections to the Vector Engine, Scalar Engine, and GPSIMD Engine, suggesting it acts as a central data buffer for these units. It has a unidirectional output connection to the Tensor Engine.
+Tensor Engine: A light green block labeled "Tensor Engine" receives data from the SBUF. Its output is connected to a "PSUM" block. This indicates that the Tensor Engine is responsible for performing tensor computations, and its results are fed into the PSUM unit.
+Vector Engine: Another light green block labeled "Vector Engine" has bidirectional connections to the SBUF and a unidirectional output connection to the PSUM block. This suggests the Vector Engine performs vector-based computations, with data being exchanged with the SBUF, and the results being sent to the PSUM.
+Scalar Engine: A light green block labeled "Scalar Engine" also has bidirectional connections to the SBUF and a unidirectional output connection to the PSUM block. This indicates the Scalar Engine handles scalar operations, exchanging data with the SBUF and contributing to the PSUM.
+GPSIMD Engine: A light green block labeled "GPSIMD Engine" has bidirectional connections to the SBUF. The acronym is not defined, but its connection to the SBUF suggests it's another processing unit that operates on data from the buffer. It does not appear to directly feed into the PSUM in this diagram.
+PSUM: A small, light blue block labeled "PSUM" receives input from the Tensor Engine, Vector Engine, and Scalar Engine. The function of PSUM is not explicitly stated but likely stands for "Partial Sum," suggesting it aggregates results from the computational engines.
+In summary, the NeuronCore architecture shown here comprises a central SBUF that facilitates data flow between the HBM and various processing engines (Tensor, Vector, Scalar, and GPSIMD). The Tensor, Vector, and Scalar Engines contribute their computational results to a PSUM unit within the NeuronCore.
+Memory hierarchy
+Fig. 11 below shows the four-level memory hierarchy available to a single NeuronCore. The ranges provided in the figure are intended to calibrate the programmer’s mental model. See NeuronDevice Architecture Guide for the exact values.
+Similar to standard memory hierarchy in other devices, memories near the top of the hierarchy are the closest to the compute engines; therefore, they are designed to provide the highest bandwidth and lowest latency. However, the faster memories have smaller capacities compared to memories near the bottom. Unlike memory hierarchy for traditional processors (e.g., CPU, GPU), all the memories available to a NeuronCore are software-managed. They are managed either directly by the programmers or the Neuron SDK. In other words, NeuronCore does not have a hardware cache system to perform any data movement across memories that is opaque to the program. Next, let’s discuss the different memories bottom-up.
+
+Fig. 11 NeuronCore Memory Hierarchy with Capacity and Bandwidth Ranges
+The image illustrates a memory hierarchy within a Neuron device, presented as a pyramid with increasing capacity and decreasing bandwidth as you move down the levels. The top two levels are explicitly labeled as "Memory within NeuronCore (on-chip)".
+Level 1 (Top): PSUM
+Represented by a small, light orange triangular section at the apex.
+Has a capacity of approximately ~2 MB.
+Offers a high bandwidth of ~10 TB/sec.
+Data flows upwards (blue arrow) from the SBUF labeled as "Use MatMult result" and downwards (red arrow) labeled "MatMult". This suggests the PSUM stores and processes results from matrix multiplications.
+Level 2: SBUF
+A larger, light yellow triangular section below the PSUM.
+Has a capacity of approximately ~25 MB.
+Provides a bandwidth of ~10 TB/sec.
+Data moves upwards (blue arrow) from the Device memory (HBM) labeled "Refill, or Start NKI kernel" and downwards (red arrow) to the Device memory (HBM) labeled "Spill, or End NKI kernel". This indicates the SBUF acts as a buffer for data being moved to and from the HBM, potentially related to the execution of Neuron Kernel Instructions (NKI).
+Level 3: Device memory (HBM)
+A larger, light green rectangular section below the SBUF.
+Has a capacity of approximately ~50 GB.
+Offers a bandwidth of ~0.5 TB/sec per NC (per NeuronCore).
+Data flows upwards (blue arrow) from the Host (CPU) memory (DRAM) labeled "Start compute graph" and downwards (red arrow) to the Host (CPU) memory (DRAM) labeled "End compute graph". This represents the High-Bandwidth Memory on the Neuron device, serving as the primary memory for computation.
+Level 4 (Bottom): Host (CPU) memory (DRAM)
+The largest, light blue triangular section at the base of the pyramid.
+Has a capacity of approximately ~1 TB.
+Provides the lowest bandwidth in this hierarchy at ~16 GB/sec.
+Arrows indicate the initiation ("Start compute graph") and termination ("End compute graph") of the compute graph, suggesting this is where the initial data and final results reside in the host system's DRAM.
+Overall Interpretation:
+The diagram illustrates a typical memory hierarchy designed to optimize data access for machine learning computations on a Neuron device. Faster, smaller memory levels (PSUM, SBUF) are closer to the processing units within the NeuronCore, providing high bandwidth for frequently accessed data. The larger, slower HBM acts as the main on-device memory, while the host CPU's DRAM provides the largest capacity but the lowest bandwidth. Data is moved up and down this hierarchy as needed during the execution of the compute graph on the Neuron device. The NKI kernel seems to play a role in managing data movement between the HBM and the on-chip buffers.
+NeuronCore external memory
+The two memories at the bottom of the hierarchy, host memory and device memory, are both considered external memory for a NeuronCore. These memories are linear memory, where multi-dimensional tensors must be stored in a flattened manner.
+The host memory is the CPU-attached DRAM, which is accessible by the host CPUs and all the NeuronCores attached to the instance. NKI kernels currently do not provide APIs to move data in and out of the host memory directly, but we can rely on ML frameworks such as PyTorch or JAX to send input data from host memory into NeuronDevice and vice versa. For an example of this, see Getting Started with NKI.
+The device memory resides within a NeuronDevice and uses High Bandwidth Memory (HBM) technologies starting from NeuronDevice v2. This means that device memory and HBM refer to the same thing within NKI. Currently, the input and output parameters to NKI kernels must be HBM tensor references. Input tensors in HBM must be loaded into memory within a NeuronCore before any computation can take place.
+NeuronCore internal memory
+The two memories at the top of the hierarchy, SBUF and PSUM, are both considered internal, on-chip memory for a NeuronCore. Both memories are two-dimensional memory, organized in 128 partitions. The partitions size of PSUM is typically much smaller than SBUF, and PSUM/SBUF partition sizes vary with NeuronCore generations.
+State Buffer (SBUF) memory is the main software-managed on-chip SRAM. The SBUF is accessible by all the compute engines within a NeuronCore. NKI kernel input tensors from HBM must be loaded into the SBUF for computation using nki.language.load, and computed output tensors of the kernel must be stored back into the HBM from SBUF using nki.language.store before the host can access them. In addition, SBUF is used for storing intermediate data within the kernel, generated by the compute engines. Note, SBUF has ~20x higher bandwidth than HBM, but needs to be carefully managed to minimize HBM accesses for better performance.
+Lastly, Partial Sum Buffer (PSUM) memory is a small, dedicated memory designed for storing matrix multiplication (MatMult) results computed by the tensor engine. Tensor Engine is able to read-add-write to every address in PSUM. Therefore, PSUM is useful for performing large MatMult calculations using multiple tiles where multiple MatMult instructions need to accumulate into the same output tile. As is shown in Fig. 10, PSUM memory can also be read and written by the vector and scalar engines. However, due to the limited capacity of PSUM, we recommend that you reserve PSUM space for the tensor engine to write MatMult outputs and to use the vector and scalar engines to evict MatMult results back to SBUF as soon as possible.
+Note that to optimize kernel performance, it is a good practice for NKI programmers to be mindful of SBUF and PSUM usage through careful tiling and loop fusion. However, ultimately the Neuron compiler performs memory allocation for SBUF and PSUM and assigns memory addresses to kernel intermediate data. When the cumulative size of live data defined by the NKI kernel overflows the capacity of any on-chip memory, the Neuron compiler inserts the necessary spills or refills between that memory and the next-tier memory in the hierarchy.
+Representing data in NKI
+NKI represents data in NeuronCore’s memory hierarchy with built-in type Tensor and its subclasses.
+A Tensor is a multi-dimensional array which contains elements with the same data type. Programmers can pass Tensor in and out of NKI kernels, and declare or initialize Tensor in any memory within the NeuronDevice (PSUM, SBUF, HBM) using APIs such as nki.language.ndarray, nki.language.zeros, and nki.language.full. Input and output tensors from ML frameworks to NKI kernels can be reinterpreted as NKI Tensor of hbm buffer type in the same underlying memory buffer.
+Tensor in NeuronCore’s internal memories (SBUF and PSUM) also have a dimension mapped to the partitions of the internal memories. We call this dimension the partition dimension. By default, NKI infers the first dimension (that is, the left most dimension) as the partition dimension of Tensor. Users could also explicitly annotate the partition dimension with par_dim from nki.language. For example:
+# NKI infers the left most dimension as the partition dimension (size 128 below)
+x = nl.ndarray((128, 32, 512), dtype=nl.float32, buffer=nl.sbuf)
+
+# Same as above but more verbose
+y = nl.ndarray((nl.par_dim(128), 32, 512), dtype=nl.float32, buffer=nl.sbuf)
+
+# We can also explicitly annotate the partition dimension if we want the partition dimension
+# to be on the other dimensions. In the following code we are creating a tensor whose partition
+# dimension is the second from the left most dimension
+z = nl.ndarray((128, nl.par_dim(32), 512), dtype=nl.float32, buffer=nl.sbuf)
+
+
+There is a special subclass of Tensor called Index. Index represents the result of the affine expression over variables produced by index-generating APIs, such as loop variables, nki.language.program_id, nki.language.affine_range, and nki.language.arange.
+A Tensor whose partition dimension is the first dimension is also called a Tile in NKI. In the above code example, x and y is a Tile, z is not a Tile. All NKI APIs take Tile as input and return a Tile as output. We will give more explanation in Tile-based operations.
+Tile-based operations
+All NKI APIs operate on Tile, which aligns with NeuronCore instruction set architecture (NeuronCore ISA).
+x = nl.ndarray((128, 32, 512), dtype=nl.float32, buffer=nl.sbuf)
+xx = nl.exp(x) # works
+
+z = nl.ndarray((128, nl.par_dim(32), 512), dtype=nl.float32, buffer=nl.sbuf)
+zz = nl.exp(z) # not supported
+
+
+To call NKI APIs to process data in a Tensor whose partition dimension is not the first dimension, users need to generate Tiles from the Tensor. This can be done by indexing the Tensor with a tuple of Index, following standard Python syntax Tensor[Index, Index, ...]. For example:
+z = nl.ndarray((128, nl.par_dim(32), 512), dtype=nl.float32, buffer=nl.sbuf)
+for i in range(128):
+  zz = nl.exp(z[i, :, :]) # works
+
+
+We will provide more discussion of the indexing in Tensor Indexing. Next, let’s discuss two important considerations when working with tile-based operations in NKI: data layout and tile size constraints.
+Layout considerations
+When working with multi-dimensional arrays in any platform, it is important to consider the physical memory layout of the arrays, or how data is stored in memory. For example, in the context of 1D linear memory, we can store a 2D array in a row-major layout or a column-major layout. Row-major layouts place elements within each row in contiguous memory, and column-major layouts place elements within each column in contiguous memory.
+As discussed in the Memory hierarchy section, the on-chip memories, SBUF and PSUM, are arranged as 2D memory arrays. The first dimension is the partition dimension P with 128 memory partitions that can be read and written in parallel by compute engines. The second dimension is the free dimension F where elements are read and written sequentially. A tensor is placed in SBUF and PSUM across both P and F, with the same start offset across all P partitions used by the tensor. Fig. 12 below illustrates a default tensor layout. Note that a tile in NKI must map shape[0] to the partition dimension.
+
+Fig. 12 Tensor mapped to partition and free dimensions of SBUF and PSUM
+The image illustrates the partitioning of a tensor across two dimensions: the Partition (P) Dimension (vertical axis) and the Free (F) Dimension (horizontal axis).
+The tensor is divided into 128 partitions along the Partition (P) Dimension, labeled from "Partition 0" to "Partition 127." This dimension has a total extent corresponding to tensor.shape[0], as indicated by the orange label and double-headed arrow spanning the height of the partitioned area.
+
+
+Along the Free (F) Dimension, a segment of the tensor is highlighted with a light blue shaded rectangle enclosed by dashed lines. The width of this highlighted segment is labeled with a blue tensor.shape[1:] and a double-headed arrow. This suggests that the partitioning shown is primarily along the first dimension (index 0) of the tensor's shape, while the subsequent dimensions (starting from index 1) are treated as a contiguous "free" dimension within each partition.
+
+
+The black dots between "Partition 3" and "Partition 126" indicate that many intermediate partitions are not explicitly shown for brevity, but the partitioning continues uniformly along the P dimension.
+
+
+In essence, the image depicts a tensor being split into 128 slices along its first dimension. Each of these slices (partitions) retains the full extent of the remaining dimensions of the tensor, which are collectively represented by the Free (F) Dimension. The highlighted area represents a subset of these partitions spanning a certain range along the Free (F) Dimension. This type of partitioning is common in distributed computing and parallel processing of large tensors, where different parts of the tensor are processed by different compute units.
+Similar to other domain-specific languages that operate on tensors, NKI defines a contraction axis of a tensor as the axis over which reduction is performed, for example the summation axis in a dot product. NKI also defines a parallel axis as an axis over which the same operation is performed on all elements. For example, if we take a [100, 200] matrix and sum each row independently to get an output of shape [100, 1], then the row-axis (axis[0], left-most) is the parallel axis, and the column-axis (axis[1], right-most) is the contraction axis.
+To summarize, the partition and free dimensions of a NKI tensor dictate how the tensor is stored in the 2D on-chip memories physically, while the parallel and contraction axes of a tensor are logical axes that are determined by the computation to be done on the tensor.
+The NeuronCore compute engines impose two layout constraints:
+[LC#1] For matrix multiplication operations, the contraction axis of both input tiles must be mapped to the P dimension.
+[LC#2] For operations that are not matrix multiplication operations, such as scalar or vector operations, the parallel axis should be mapped to the P dimension.
+LC#1 means that to perform a matrix multiplication of shapes [M, K] and [K, N], Tensor Engine (the engine performing this operation) requires the K dimension to be mapped to the partition dimension in SBUF for both input matrices. Therefore, you need to pass shapes [K, M] and [K, N] into the nki.isa.nc_matmul API, as the partition dimension is always the left-most dimension for an input tile to any NKI compute API.
+To help developers get started with NKI quickly, NKI also provides a high-level API nki.language.matmul that can take [M, K] and [K, N] input shapes and invoke the necessary layout shuffling on the input data before sending it to the Tensor Engine matmul instruction.
+LC#2, on the other hand, is applicable to many instructions supported on Vector, Scalar and GpSimd Engines. See nki.isa.tensor_reduce API as an example.
+Tile size considerations
+Besides layout constraints, NeuronCore hardware further imposes three tile-size constraints in NKI:
+[TC#1] The P dimension size of a tile in both SBUF and PSUM must never exceed nki.tile_size.pmax == 128.
+[TC#2] For tiles in PSUM, the F dimension size must not exceed nki.tile_size.psum_fmax == 512.
+[TC#3] Matrix multiplication input tiles F dimension size must not exceed nki.tile_size.gemm_stationary_fmax == 128 on the left-hand side (LHS), or nki.tile_size.gemm_moving_fmax == 512 on the right-hand side (RHS).
+You are responsible for breaking your tensors according to these tile-size constraints. If the constraints are not met properly, the NKI kernel compilation throws a SyntaxError indicating which constraint is violated. For example, below we show a simple kernel that applies the exponential function to every element of an input tensor. To start, let’s write a kernel that expects a hard-coded shape of (128, 512) for both input and output tensors:
+1import neuronxcc.nki.language as nl
+ 2from neuronxcc import nki
+ 3
+ 4@nki.jit
+ 5def tensor_exp_kernel_(in_tensor):
+ 6  """NKI kernel to compute elementwise exponential of an input tensor
+ 7
+ 8  Args:
+ 9      in_tensor: an input tensor of shape [128,512]
+10  Returns:
+11      out_tensor: an output tensor of shape [128,512]
+12  """
+13
+14  out_tensor = nl.ndarray(in_tensor.shape, dtype=in_tensor.dtype,
+15                          buffer=nl.shared_hbm)
+16
+17  # Generate indices for the input/output tensors
+18  i_p = nl.arange(128)[:, None]
+19  i_f = nl.arange(512)[None, :]
+20
+21  # Load input data from HBM to on-chip memory
+22  in_tile = nl.load(in_tensor[i_p, i_f])
+23
+24  # perform the computation:
+25  out_tile = nl.exp(in_tile)
+26
+27  # store the results back to HBM
+28  nl.store(out_tensor[i_p, i_f], value=out_tile)
+29
+30  return out_tensor
+31
+32
+33if __name__ == "__main__":
+34  import torch
+35  from torch_xla.core import xla_model as xm
+36
+37  device = xm.xla_device()
+38
+39  shape = (128, 512)
+40  in_tensor = torch.ones(shape,  dtype=torch.bfloat16).to(device=device)
+41  out_tensor = tensor_exp_kernel_(in_tensor)
+42
+43  print(out_tensor) # an implicit XLA barrier/mark-step
+
+
+As expected, the output tensor is an element-wise exponentiation of the input-tensor (a tensor of ones):
+tensor([[2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        ...,
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188]],
+        device='xla:1', dtype=torch.bfloat16)
+
+
+Now let’s examine what happens if the input/output tensor shapes do not match the shape of the compute kernel. As an example, we can change the input and output tensor shape from [128,512] to [256,512]:
+1if __name__ == "__main__":
+ 2  import torch
+ 3  from torch_xla.core import xla_model as xm
+ 4
+ 5  device = xm.xla_device()
+ 6
+
+
+7  shape = (256, 512) # Previously (128, 512)
+
+
+8  in_tensor = torch.ones(shape,  dtype=torch.bfloat16).to(device=device)
+ 9  out_tensor = tensor_exp_kernel_(in_tensor)
+10
+11  print(out_tensor) # an implicit XLA barrier/mark-step
+
+
+Since the compute kernel is expecting (128, 512) input/output tensors, but we used a (256, 512) input/output tensor instead, the bottom half of the output tensor becomes garbage data:
+tensor([[2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        [2.7188, 2.7188, 2.7188, ..., 2.7188, 2.7188, 2.7188],
+        ...,
+        [0.5273, 0.6055, 0.4336, ..., 0.9648, 0.9414, 0.4062],
+        [0.7109, 0.2539, 0.7227, ..., 0.7344, 0.2539, 0.1211],
+        [0.8867, 0.2109, 0.8789, ..., 0.8477, 0.2227, 0.1406]],
+        device='xla:1', dtype=torch.bfloat16)
+
+
+We could try to fix this by changing the tile size inside the compute kernel to (256, 512) as well, and see what happens: (NOTE: This violates tile-size constraint #1!):
+1import neuronxcc.nki.language as nl
+ 2from neuronxcc import nki
+ 3
+ 4
+ 5@nki.jit
+ 6def tensor_exp_kernel_(in_tensor):
+ 7  """NKI kernel to compute elementwise exponential of an input tensor
+ 8
+ 9  Args:
+10      in_tensor: an input tensor of shape [128,512]
+11  Returns:
+12      out_tensor: an output tensor of shape [128,512]
+13  """
+14  out_tensor = nl.ndarray(in_tensor.shape, dtype=in_tensor.dtype,
+15                          buffer=nl.shared_hbm)
+16
+17  # Generate indices for the input/output tensors
+
+
+18  i_p = nl.arange(256)[:, None] # Previously nl.arange(128)
+
+
+19  i_f = nl.arange(512)[None, :]
+20
+21  # Load input data from HBM to on-chip memory
+22  in_tile = nl.load(in_tensor[i_p, i_f])
+23
+24  # perform the computation:
+25  out_tile = nl.exp(in_tile)
+26
+27  # store the results back to HBM
+28  nl.store(out_tensor[i_p, i_f], value=out_tile)
+29
+30
+31if __name__ == "__main__":
+32  import torch
+33  from torch_xla.core import xla_model as xm
+34
+35  device = xm.xla_device()
+36
+
+
+37  shape = (256, 512) # Previously (128, 512)
+
+
+38  in_tensor = torch.ones(shape,  dtype=torch.bfloat16).to(device=device)
+39  out_tensor = tensor_exp_kernel_(in_tensor)
+40
+41  print(out_tensor) # an implicit XLA barrier/mark-step
+
+
+Here, Neuron compiler identifies the tile-size constraint violation and fails compilation with the following exception:
+SyntaxError: Size of partition dimension 256 exceeds architecture limitation of 128.
+
+
+Now, let’s see how NKI developers can build a kernel that properly handles (256, 512) input/output tensors with a simple loop. We can use the nki.language.tile_size.pmax constant defined in NKI as the maximum partition dimension size in a tile.
+1import neuronxcc.nki.language as nl
+ 2from torch_neuronx import nki_jit
+ 3
+ 4@nki_jit
+ 5def tensor_exp_kernel_(in_tensor):
+ 6  """NKI kernel to compute elementwise exponential of an input tensor
+ 7
+ 8  Args:
+ 9      in_tensor: an input tensor of shape [256,512]
+10  Returns:
+11      out_tensor: an output tensor of shape [256,512]
+12  """
+13  out_tensor = nl.ndarray(in_tensor.shape, dtype=in_tensor.dtype,
+14                          buffer=nl.shared_hbm)
+15
+16  i_f = nl.arange(512)[None, :]
+17
+
+
+18  for k in nl.affine_range(2):
+
+
+19    # Generate tensor indices for the input/output tensors
+
+
+20    i_p = k * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+
+
+21
+22    # Load input data from HBM to on-chip memory
+23    in_tile = nl.load(in_tensor[i_p, i_f])
+24
+25    # perform the computation
+26    out_tile = nl.exp(in_tile)
+27
+28    # store the results back to HBM
+29    nl.store(out_tensor[i_p, i_f], value=out_tile)
+30
+31  return out_tensor
+
+
+The nl.affine_range(2) API call returns a list of integers [0, 1]. nl.affine_range should be the default loop iterator choice in NKI, when the loop has no loop-carried dependency. Note, associative reductions are not considered loop carried dependencies in this context. One such example is accumulating results of multiple matrix multiplication calls into the same output buffer using += (see Matmul Tutorial for an example). Otherwise, nl.sequential_range should be used to handle loop-carried dependency. Note, Neuron compiler transforms any usage of Python range() API into nl.sequential_range() under the hood. See NKI iterator API for a detailed discussion of various loop iterator options in NKI.
+While the code above does handle (256, 512) tensors correctly, it is rather inflexible since it only supports input shape of (256, 512). Therefore, as a last step, we extend this kernel to handle varying input/output sizes:
+1import neuronxcc.nki.language as nl
+ 2from neuronxcc import nki
+ 3import math
+ 4
+ 5@nki.jit
+ 6def tensor_exp_kernel_(in_tensor):
+ 7  """NKI kernel to compute elementwise exponential of an input tensor
+ 8
+ 9  Args:
+10      in_tensor: an input tensor of ANY 2D shape (up to SBUF size)
+11  Returns:
+12      out_tensor: an output tensor of ANY 2D shape (up to SBUF size)
+13  """
+
+
+14  sz_p, sz_f = in_tensor.shape
+
+
+15  out_tensor = nl.ndarray((sz_p, sz_f), dtype=in_tensor.dtype,
+16                          buffer=nl.shared_hbm)
+17
+18
+
+
+19  i_f = nl.arange(sz_f)[None, :]
+
+
+20
+
+
+21  for p in nl.affine_range(math.ceil(sz_p / nl.tile_size.pmax)):
+
+
+22    # Generate tensor indices for the input/output tensors
+23    # pad index to pmax, for simplicity
+
+
+24    i_p = p * nl.tile_size.pmax + nl.arange(nl.tile_size.pmax)[:, None]
+
+
+25
+26    # Load input data from external memory to on-chip memory
+27    # only read up to sz_p
+28    in_tile = nl.load(in_tensor[i_p, i_f], mask=(i_p<sz_p))
+29
+30    # perform the computation
+31    out_tile = nl.exp(in_tile)
+32
+33    # store the results back to external memory
+34    # only write up to sz_p
+35    nl.store(out_tensor[i_p, i_f], value=out_tile, mask=(i_p<sz_p))
+36
+37    return out_tensor
+
+
+The above example handles cases where in_tensor.shape[0] is not a multiple of 128 by passing a mask field into the nl.load and nl.store API calls. For more information, refer to NKI API Masking.
+Later in this guide, we’ll explore another way to launch a kernel with varying input/output shapes, with a single program multiple data programming model, or SPMD. The SPMD programming model removes the need for explicit looping over different tiles with variable trip counts, which could lead to cleaner and more readable code.
+Tensor Indexing
+As mentioned above, we can index Tensor with standard Python syntax to produce Tiles. There are two styles of indexing: Basic and Advanced Tensor Indexing. Note that currently NKI does not support mixing Basic and Advanced Tensor Indexing in the same Index tuple.
+Basic Tensor Indexing
+We can index a Tensor with fewer indices than dimensions, we get a view of the original tensor as a sub-dimensional tensor. For example:
+x = nl.ndarray((2, 2, 2), dtype=nl.float32, buffer=nl.hbm)
+
+# `x[1]` return a view of x with shape of [2, 2]
+# [[x[1, 0, 0], x[1, 0 ,1]], [x[1, 1, 0], x[1, 1 ,1]]]
+assert x[1].shape == [2, 2]
+
+
+By indexing a Tensor like this, we can generate a Tile with the partition dimension in the first dimension and feed the Tile to NKI compute APIs:
+# Not a tile, cannot directly feed to a NKI compute API
+x = nl.ndarray((2, nl.par_dim(2), 2), dtype=nl.float32)
+# Error
+y = nl.exp(x)
+
+# `x[1]` have shape [2, 2], and the first dimension is the partition dimension of the original
+# tensor. We can feed it to a NKI compute API.
+y = nl.exp(x[1])
+
+
+NKI also supports slicing in basic tensor indexing:
+x = nl.ndarray((2, 128, 1024), dtype=nl.float32, buffer=nl.hbm)
+
+# `x[1, :, :]` is the same as `x[1]`
+assert x[1, :, :].shape == [128, 1024]
+
+# Get a smaller view of the third dimension
+assert x[1, :, 0:512].shape == [128, 512]
+
+# `x[:, 1, 0:2]` returns a view of x with shape of [2, 2]
+# [[x[0, 1, 0], x[0, 1 ,1]], [x[1, 1, 0], x[1, 1 ,1]]]
+assert x[:, 1, 0:2].shape == [2, 2]
+
+
+Advanced Tensor Indexing
+So far we have only shown basic indexing in tensors. However, NeuronCore offers much more flexible tensorized memory access in its on-chip SRAMs along the free dimension. You can use this to efficiently stride the SBUF/PSUM memories at high performance for all NKI APIs that access on-chip memories. However, such flexible indexing is not supported along the partition dimension. That being said, device memory (HBM) is always more performant when accessed sequentially.
+In this section, we share several use cases that benefit from advanced memory access patterns and demonstrate how to implement them in NKI.
+Advanced Tensor Indexing in NKI leverages the nl.arange API.
+Case #1 - Tensor split to even and odd columns
+Here we split an input tensor into two output tensors, where the first output tensor gathers all the even columns from the input tensor, and the second output tensor gathers all the odd columns from the input tensor. We assume the rows of the input tensors are mapped to SBUF partitions. Therefore, we are effectively gathering elements along the free dimension of the input tensor. Fig. 13 below visualizes the input and output tensors.
+
+Fig. 13 Tensor split to even and odd columns
+The image shows a transformation from an "Input" structure on the left to an "Output" structure on the right. Both the input and output are represented as rectangular areas with dimensions labeled "P" (vertical) and "F" (horizontal).
+Input:
+The input area is filled with alternating vertical stripes of two different light colors: light blue and light green.
+There are a total of sixteen vertical stripes within the input area.
+The overall dimensions of the input are P (height) by F (width), encompassing all the stripes.
+Output:
+The output section shows two separate, adjacent rectangular areas.
+The left output area is filled with a solid light blue color and has dimensions P (height) by F (width).
+The right output area is filled with a solid light green color and also has dimensions P (height) by F (width).
+Transformation:
+The image visually suggests that the alternating vertical stripes in the input are somehow separated or aggregated into two distinct output areas based on their color. The light blue stripes from the input appear to have been consolidated into the left output rectangle, and the light green stripes from the input appear to have been consolidated into the right output rectangle. Both output rectangles maintain the original height (P) and effectively the original combined width (F) of the input.
+In essence, the diagram illustrates a demuxing or separation process based on a feature (in this case, color) present in the input structure, resulting in two separate output structures, each representing one of the distinct features.
+
+1from neuronxcc import nki
+ 2import neuronxcc.nki.language as nl
+ 3import math
+ 4
+ 5@nki.jit
+ 6def tensor_split_kernel_(in_tensor):
+ 7  """NKI kernel to split an input tensor into two output tensors, along the column axis.
+ 8
+ 9  The even columns of the input tensor will be gathered into the first output tensor,
+10  and the odd columns of the input tensor will be gathered into the second output tensor.
+11
+12  Args:
+13      in_tensor: an input tensor
+14  Returns:
+15      out_tensor_even: a first output tensor (will hold the even columns of the input tensor)
+16      out_tensor_odd: a second output tensor (will hold the odd columns of the input tensor)
+17  """
+18
+19  # Extract tile sizes.
+20  sz_p, sz_f = in_tensor.shape
+21  sz_fout_even = sz_f - sz_f // 2
+22  sz_fout_odd = sz_f // 2
+23  out_tensor_even = nl.ndarray((sz_p, sz_fout_even), dtype=in_tensor.dtype, buffer=nl.shared_hbm)
+24  out_tensor_odd = nl.ndarray((sz_p, sz_fout_odd), dtype=in_tensor.dtype, buffer=nl.shared_hbm)
+25
+26  # We assume that all three tensors have the same partition dimension size
+27  # and it does not exceed pmax
+28  assert in_tensor.shape[0] == out_tensor_even.shape[0] == out_tensor_odd.shape[0]
+29  assert in_tensor.shape[0] <= nl.tile_size.pmax
+30
+31  # Make sure even/odd output tensors have correct free dimension size
+32  assert sz_fout_even == math.ceil(sz_f / 2)
+33  assert sz_fout_odd == math.floor(sz_f / 2)
+34
+35  # Generate tensor indices for the input/output tensors
+36  i_p = nl.arange(sz_p)[:, None]
+37  i_f = nl.arange(sz_f)[None, :]
+38  i_fout_even = nl.arange(sz_fout_even)[None, :]
+39  i_fout_odd = nl.arange(sz_fout_odd)[None, :]
+40
+41  # Split pattern:
+42  i_f_even = (2 * i_fout_even)
+43  i_f_odd = (2 * i_fout_odd + 1)
+44
+45  # Load input data from external memory to on-chip memory
+46  in_tile = nl.load(in_tensor[i_p, i_f])
+47
+48  # Perform the split
+49  # these assignments invoke copy instructions under the hood
+50  # which can execute on either Scalar or Vector Engine
+51  # (decided by compiler instruction scheduler)
+52  out_tile_even = in_tile[i_p, i_f_even]
+53  out_tile_odd = in_tile[i_p, i_f_odd]
+54
+55  # Store the results back to external memory
+56  nl.store(out_tensor_even[i_p, i_fout_even], value=out_tile_even)
+57  nl.store(out_tensor_odd[i_p, i_fout_odd], value=out_tile_odd)
+58
+59  return out_tensor_even, out_tensor_odd
+60
+61
+62if __name__ == "__main__":
+63    import torch
+64    from torch_xla.core import xla_model as xm
+65
+66    device = xm.xla_device()
+67
+68    X, Y = 4, 5
+69    in_tensor = torch.arange(X * Y, dtype=torch.bfloat16).reshape(X, Y).to(device=device)
+70
+71    out1_tensor, out2_tensor = tensor_split_kernel_(in_tensor)
+72    print(in_tensor, out1_tensor, out2_tensor)
+
+
+The main concept in this example is that we introduced the even (i_f_even) and odd ( i_f_odd ) indices. Note that both indices are affine expressions of the form start + stride * nl.arange(size) with a specific start offset (0/1 respectively) and stride (2 for both cases). This allows us to stride through the in_tile memory and copy it to both output tiles (out_tile_even and out_tile_odd), according to the desired pattern.
+Case #2 - Transpose tensor along the f axis
+In this example we transpose a tensor along two of its axes. Note, there are two main types of transposition in NKI:
+Transpose between the partition-dimension axis and one of the free-dimension axes, which is achieved via the nki.isa.nc_transpose API.
+Transpose between two free-dimension axes, which is achieved via a nki.language.copy API, with indexing manipulation in the transposed axes to re-arrange the data.
+In this example, we’ll focus on the second case: consider a three-dimensional input tensor [P, F1, F2], where the P axis is mapped to the different SBUF partitions and the F1 and F2 axes are flattened and placed in each partition, with F1 being the major dimension. Our goal in this example is to transpose the F1 and F2 axes with a parallel dimension P, which would re-arrange the data within each partition. Fig. 14 below illustrates the input and output tensor layouts.
+
+Fig. 14 Tensor F1:F2 Transpose
+The image depicts a data transformation from an "Input" structure on the left to an "Output" structure on the right. Both sides show a multi-level representation of data, characterized by dimensions "P" (vertical) and "F" (horizontal).
+Input:
+At the top, a 2x4 grid is labeled "Input:". The vertical dimension is labeled "F1" with a size of 2, and the horizontal dimension is labeled "F2" with a size of 4. Each cell in the grid contains a numerical value:
+Row 0: [0, 1, 2, 3]
+Row 1: [0, 1, 2, 3]
+Below the grid, there is a flattened representation of this input as a 1D array: [0, 1, 2, 3, 0, 1, 2, 3]. This array has a length corresponding to F1 * F2 = 8.
+Further down, there are three horizontal bars of varying colors and lengths, followed by three circles arranged horizontally, and then two empty rectangular blocks stacked vertically. The vertical span of these elements is labeled "P," and their combined horizontal extent is labeled "F." The colored bars visually represent some form of partitioned or feature-based data derived from the initial input.
+Output:
+At the top, a 4x2 grid is labeled "Output:". The vertical dimension is labeled "F2" with a size of 4, and the horizontal dimension is labeled "F1" with a size of 2. Each cell contains a numerical value:
+Column 0: [0, 0, 2, 3]
+Column 1: [1, 1, 2, 3]
+Below this grid, there is a flattened representation as a 1D array: [0, 0, 1, 1, 2, 2, 3, 3]. This array also has a length of 8.
+Corresponding to the colored bars in the input, there are three horizontal bars in the output, with colors that appear to be rearranged or transformed compared to the input.
+Similarly, the three circles are present in the same horizontal arrangement as in the input.
+The two empty rectangular blocks are also present at the bottom, maintaining their vertical stack. The overall vertical span is labeled "P," and the horizontal extent is labeled "F," consistent with the input side.
+Transformation:
+The blue curved arrows indicate a potential mapping between the input grid and the output grid. It appears that the input grid with dimensions (F1=2, F2=4) is being transposed or reshaped into an output grid with dimensions (F1=2, F2=4) but with a different arrangement of the underlying data, as seen in the numerical values. The flattened arrays also reflect this rearrangement. The transformation applied to the colored bars suggests that this reshaping or reordering of the initial data also affects the subsequent feature representations. The circles and the empty blocks seem to pass through the transformation unchanged.
+In summary, the image illustrates a data transformation process where an input tensor is reshaped, and this reshaping affects derived feature representations, while some other elements remain invariant. The transformation involves changing the dimensions from (2, 4) to (4, 2) and reordering the elements accordingly.
+1import neuronxcc.nki as nki
+ 2import neuronxcc.nki.language as nl
+ 3
+ 4
+ 5@nki.jit
+ 6def tensor_transpose2D_kernel_(in_tensor, shape2D):
+ 7  """
+ 8  NKI kernel to reorder the elements on axis[1] of the input tensor.
+ 9
+10  Every row of the input tensor is a flattened row-major 2D matrix.
+11  The shape2D argument defines the dimensions of the flattened matrices (#rows,#cols).
+12  Our goal in this kernel is to transpose these flattened 2D matrices, i.e. make them (#cols,#rows).
+13
+14  Example:
+15      in_tensor = [a0,a1,a2,a3,b0,b1,b2,b3,c0,c1,c2,c3]
+16      shape2D = (3,4)
+17  this means that in_tensor has 3 rows and 4 columns, i.e. can be represented as:
+18      [a0,a1,a2,a3]
+19      [b0,b1,b2,b3]
+20      [c0,c1,c2,c3]
+21  after transpose, we expect to get:
+22      [a0,b0,c0]
+23      [a1,b1,c1]
+24      [a2,b2,c2]
+25      [a3,b3,c3]
+26  Thus, out_tensor is expected to be [a0,b0,c0,a1,b1,c1,a2,b2,c2,a3,b3,c3]
+27
+28  Args:
+29    in_tensor: an input tensor
+30    shape2D: tuple representing the dimensions to be transposed: (#rows, #cols)
+31    out_tensor: an output (transposed) tensor
+32  """
+33  out_tensor = nl.ndarray(in_tensor.shape, dtype=in_tensor.dtype,
+34                          buffer=nl.shared_hbm)
+35  # Gather input shapes
+36  sz_p, _ = in_tensor.shape
+37
+38  # Load input data from external memory to on-chip memory
+39  in_tile = nl.load(in_tensor)
+40
+41  # Performing f1/f2 transpose
+42  # ==========================
+43  # The desired transpose pattern is provided as an input:
+44  sz_f1, sz_f2 = shape2D
+45
+46  # We're going to need 3 indices to perform f1:f2 transpose.
+47  # - i_p0 is the parallel index
+48  # - i_f1 and i_f2 are both free-dim indices, and will be used to transpose between the f1/f2 axes
+49  i_p0 = nl.arange(sz_p)[:, None, None]
+50  i_f1 = nl.arange(sz_f1)[None, :, None]
+51  i_f2 = nl.arange(sz_f2)[None, None, :]
+52
+53  # Perform the transposition via a SBUF-to-SBUF copy, with access-pattern manipulation
+54  # Note that we have 2D tensors and 3 indices, since we need to represent a 2D access pattern *per partition*
+55  # RHS traverses an F1 x F2 matrix in a row major manner
+56  # LHS traverses an F2 x F1 (new) matrix in a row major manner
+57  out_tile = nl.ndarray(shape=(sz_p, sz_f2*sz_f1), dtype=out_tensor.dtype)
+58  out_tile[i_p0, i_f2*sz_f1+i_f1] = nl.copy(in_tile[i_p0, i_f1*sz_f2+i_f2])
+59
+60  # Finally, we store out_tile to external memory
+61  nl.store(out_tensor, value=out_tile)
+62
+63  return out_tensor
+
+
+The main concept introduced in this example is a 2D memory access pattern per partition, via additional indices. We copy in_tile into out_tile, while traversing the memory in different access patterns between the source and destination, thus achieving the desired transposition.
+You may download the full runnable script from Transpose2d tutorial.
+Case #3 - 2D pooling operation
+Lastly, we examine a case of dimensionality reduction. We implement a 2D MaxPool operation, which is used in many vision neural networks. This operation takes C x [H,W] matrices and reduces each matrix along the H and W axes. To leverage free-dimension flexible indexing, we can map the C (parallel) axis to the P dimension and H/W (contraction) axes to the F dimension. Performing such a 2D pooling operation requires a 4D memory access pattern in the F dimension, with reduction along two axes. Fig. 15 below illustrates the input and output tensor layouts.
+Fig. 15 2D-Pooling Operation (reducing on axes F2 and F4)
+The image shows a transformation from a larger "Input" 3D structure on the left to a smaller "Output" 3D structure on the right. Both structures are conceptually cubes with different dimensions labeled along their axes.
+Input:
+The input is represented as a cube with dimensions labeled F1, F2 along the horizontal plane and F3, F4 along the vertical axis. The depth of the cube extends along the P dimension.
+The front face of the input cube is a grid of 4x4 cells, alternating in color between light blue and light green. This pattern extends along the F1 and F3/F4 dimensions.
+The dimensions F1 and F2 are grouped together, suggesting they might represent different aspects of the horizontal extent but have the same size in this depiction (4 units each, based on the 4x4 grid). Similarly, F3 and F4 are grouped, indicating they might represent different aspects of the vertical extent with the same size (4 units).
+The depth of the input cube is along the P dimension.
+Output:
+The output is represented as a smaller cube with dimensions labeled F1 along one horizontal axis, F3 along the vertical axis, and P along the depth.
+The visible front face of the output cube is a grid of 3x3 cells, also alternating in color between light blue and light green. This pattern extends along the F1 and F3 dimensions.
+The dimension F1 has a size of 3 units (based on the 3x3 grid), and the dimension F3 also has a size of 3 units.
+The depth of the output cube is along the P dimension, similar to the input.
+Transformation:
+The transformation shows a reduction in the spatial dimensions from the input to the output. The input has effective spatial dimensions of 4x4 in the front face, while the output has spatial dimensions of 3x3 in its front face. The depth (P dimension) appears to be preserved across the transformation. The alternating color pattern is also maintained, albeit in a smaller grid.
+This type of transformation could represent an operation like a convolutional layer with a kernel size smaller than the input feature map, resulting in a smaller output feature map. The P dimension could represent the number of channels or filters, which remains consistent. The reduction from a 4x4 spatial extent to a 3x3 spatial extent suggests a kernel size of 2x2 with a stride of 1, or a similar spatial filtering operation.
+1from neuronxcc import nki
+ 2import neuronxcc.nki.language as nl
+ 3
+ 4@nki.jit
+ 5def tensor_maxpool_kernel_(in_tensor, pool_size):
+ 6  """NKI kernel to compute a 2D max-pool operation
+ 7
+ 8  Args:
+ 9      in_tensor: an input tensor, of dimensions C x H x W
+10      pool_size: integer P representing a (square) pool-window size
+11  Returns:
+12      out_tensor: the resulting output tensor, of dimensions C x (H/P) x (W/P)
+13  """
+14
+15  # Get input/output dimensions
+16  sz_cin, sz_hin, sz_win = in_tensor.shape
+17  sz_hout, sz_wout = sz_hin // pool_size, sz_win // pool_size
+18  out_tensor = nl.ndarray((sz_cin, sz_hout, sz_wout), dtype=in_tensor.dtype,
+19                          buffer=nl.shared_hbm)
+20
+21  # Set relevant sizes
+22  sz_p = sz_cin
+23  sz_pool = pool_size
+24
+25  # Generate tensor h/w index patterns
+26  # 3D indexing according to [C, H, W]
+27  i_p = nl.arange(sz_p)[:, None, None] # 3D for
+28  i_win = nl.arange(sz_win)[None, None, :]
+29  i_hin = nl.arange(sz_hin)[None, :, None]
+30
+31  i_wout = nl.arange(sz_wout)[None, None, :]
+32  i_hout = nl.arange(sz_hout)[None, :, None]
+33
+34  # Generate pool index patterns (requires two extra dimensions, for the pool window)
+35  i_0 = nl.arange(sz_p)[:, None, None, None, None] #
+36  i_1 = nl.arange(sz_hin//sz_pool)[None, :, None, None, None] # y_outer
+37  i_2 = nl.arange(sz_pool)[None, None, :, None, None] # y_inner
+38  i_3 = nl.arange(sz_win//sz_pool)[None, None, None, :, None] # x_outer
+39  i_4 = nl.arange(sz_pool)[None, None, None, None, :] # x_inner
+40
+41  # Load input data from external memory to on-chip memory
+42  # Declare ndarray to force a 3D tensor (temporary requirement)
+43  in_tile = nl.ndarray([sz_p, sz_hin, sz_win], dtype=in_tensor.dtype)
+44  in_tile[:,:,:] = nl.load(in_tensor[i_p, i_hin, i_win])
+45
+46  # Perform the pooling operation:
+47  # We use numpy's advanced indexing, in order to extend in_tile to 5D, and then reduce-max two dimension.
+48  # axis[0] is the index for p_dim, and thus doesn't participate in the reduction operation.
+49  # axis[1] and axis[2] together index the rows, with axis[2] responsible for inner strides
+50  # (i.e. inside a pooling window), and axis[1] responsible for the outer strides. As such, we reduce over axis[2].
+51  # Similarly, axis[3] and axis[4] together index the columns, and we thus reduce over axis[4].
+52  out_tile = nl.max(in_tile[i_0, sz_pool*i_1+i_2, sz_pool*i_3+i_4], axis=[2,4])
+53
+54  # Store the results back to external memory
+55  nl.store(out_tensor[i_p, i_hout, i_wout], value=out_tile)
+56
+57  return out_tensor
+58
+59
+60if __name__ == "__main__":
+61    import torch
+62    from torch_xla.core import xla_model as xm
+63
+64    device = xm.xla_device()
+65
+66    # Now let's run the kernel
+67    POOL_SIZE = 2
+68    C, HIN, WIN = 2, 6, 6
+69    HOUT, WOUT = HIN//POOL_SIZE, WIN//POOL_SIZE
+70
+71    in_tensor = torch.arange(C * HIN * WIN, dtype=torch.bfloat16).reshape(C, HIN, WIN).to(device=device)
+72    out_tensor = tensor_maxpool_kernel_(in_tensor, POOL_SIZE)
+73
+74    print(in_tensor, out_tensor) # an implicit XLA barrier/mark-step
+
+
+SPMD: Launching multiple instances of a kernel
+So far we have discussed how to launch a single NKI kernel instance, in which the full input tensor is processed. In this section, we discuss how to launch multiple instances of the same kernel and slice the full input tensor across kernel instances using a single program multiple data programming model (SPMD).
+Note
+In current NKI release, adopting the SPMD programming model has no impact on performance of NKI kernel, and therefore is considered optional. A SPMD program is compiled into an executable that targets one NeuronCore, and the different instances of the SPMD program are executed serially on a single NeuronCore. This is subject to changes in future releases.
+NKI allows users to launch multiple instances of a kernel, which are organized in a user-defined multi-dimensional grid. The grid indices are then used by the different kernel instances to select which input and output data to access. There is no restriction on the number of dimensions in an SPMD grid, nor on the size of each dimension. Each kernel instance can find its coordinates within the launch grid using the nki.language.program_id API. Neuron compiler translates the SPMD launch grid into nested loops of compute-kernel invocations, which are then executed on the NeuronCore.
+As an example, we’ll perform a C=A@B matrix multiplication, where A and B are of shape (512, 128) and (128, 1024) respectively. We partition the output tensor C of shape (512, 1024) into 4x2 tiles and assign the task of computing each output tile to a different kernel instance. A 4x2 launch-grid is chosen in this case, in order to make each compute kernel instance operate on a single tile in A and a single tile in B, while adhering to the tile-size constraints.
+With a 2D 4x2 launch grid, the (i,j) kernel instance is responsible for computing the (i,j) tile of C. The computation of the (i,j) tile requires the corresponding rows of A and columns of B. This induces a four-way row-wise partitioning of A and a two-way column-wise partitioning of B, as shown in Fig. 16.
+Fig. 16 Visualization of 512x128x1024 matrix multiplication using SPMD
+The image illustrates the multiplication of two matrices, shown on the left of the "@" symbol, resulting in an output matrix on the right of the "=" symbol.
+First Matrix (Left):
+This matrix is a column vector with dimensions 512 x 1.
+It is visually divided into four segments vertically.
+The top segment has a height of 128 and is filled with a light blue color.
+The second segment also has a height of 128 and is filled with a light blue color.
+The third segment has a height of 128 and is filled with a light green color.
+The bottom segment has a height of 128 and is white (unfilled).
+Second Matrix (Middle):
+This matrix is a row vector with dimensions 1 x 1024.
+It is visually divided into two segments horizontally.
+The left segment has a width of 512 and is filled with a light blue color.
+The right segment has a width of 512 and is filled with a light green color.
+Matrix Multiplication Operation ("@"):
+The "@" symbol indicates matrix multiplication between the column vector on the left and the row vector in the middle.
+Resulting Matrix (Right):
+The resulting matrix has dimensions 512 x 1024.
+It is visually represented as a grid with 4 rows and 2 columns of segments, resulting in a 512 (height) x 1024 (width) structure.
+The top two rows (0 and 1, each with height 128) are filled with a light blue color across their entire width (1024). This corresponds to the multiplication of the light blue segments of the column vector with both the light blue and light green segments of the row vector.
+The third row (index 2, with height 128) is filled with a light green color across its entire width (1024). This corresponds to the multiplication of the light green segment of the column vector with both segments of the row vector.
+The bottom row (index 3, with height 128) is white, corresponding to the white segment of the column vector multiplied by the row vector (resulting in zero or a default value represented by white).
+Annotations:
+A purple arrow points to the top-left element of the resulting matrix, labeled "i,j = 0,0".
+A purple arrow points to an element in the third row and first column of the resulting matrix (using 0-based indexing), labeled "i,j = 2,1".
+In summary: The image illustrates the outer product of a 512x1 column vector (with colored segments) and a 1x1024 row vector (also with colored segments), resulting in a 512x1024 matrix where the colors of the resulting sub-matrices are determined by the combination of the colors of the corresponding segments in the input vectors. The annotations highlight specific element indices in the output matrix.
+In this SPMD kernel example, we will use the high-level nki.language.matmul API, so that we can focus on the concept of SPMD without worrying about the layout requirement of Tensor Engine (LC#1). To achieve the best performance, we suggest transposing input A and invoking another NKI kernel instead, which solely performs matmul operations on Tensor Engine using nki.isa.nc_matmul without extra overhead in changing input layouts to meet LC#1.
+1import neuronxcc.nki.language as nl
+ 2from neuronxcc import nki
+ 3
+ 4
+ 5@nki.jit
+ 6def matmul_128x128x512_spmd(A, B):
+ 7  """NKI kernel to compute a 128x128x512 matrix multiplication operation.
+ 8     Use SPMD program IDs to index into the full A and B input tensor to get tiles
+ 9     for 128x128x512 matrix multiplication.
+10
+11  Args:
+12      A: an input tensor of shape [M=512,K=128],
+13         a left hand side argument of the matrix multiplication,
+14      B: an input tensor of shape [K=128,N=1024],
+15         a right hand side argument of the matrix multiplication
+16      result: the resulting output tensor of shape [M=512,N=1024]
+17  """
+18  N, K = A.shape
+19  K_, M = B.shape
+20  assert K == K_
+21  # Create output tensor shared between all SPMD instances as result tensor
+22  result = nl.ndarray((N, M), dtype=A.dtype, buffer=nl.shared_hbm)
+23
+24  # Defining starting indexes for input A and B
+25  i_A_row = nl.program_id(0) * 128
+26  i_B_col = nl.program_id(1) * 512
+27
+28  # Loading the inputs (HBM->SBUF)
+29  A_tile = nl.load(A[i_A_row:i_A_row+128, 0:128])
+30  B_tile = nl.load(B[0:128, i_B_col:i_B_col+512])
+31
+32  # Perform the matrix-multiplication
+33  # Note1: nl.matmul will invoke a transpose on A_tile before performing the actual matmul operation
+34  # Note2: A NKI matmul instruction always writes to PSUM in float32 data-type
+35  result_psum = nl.matmul(A_tile, B_tile)
+36
+37  # Copy the result from PSUM back to SBUF, and cast to expected output data-type
+38  result_sbuf = nl.copy(result_psum, dtype=result.dtype)
+39
+40  # The result of a [128,128] x [128,512] matrix multiplication has a shape of [128, 512].
+41  # This dictates which indices to use to address the result tile.
+42  nl.store(result[i_A_row:i_A_row+128, i_B_col:i_B_col+512], value=result_sbuf)
+43
+44  return result
+45
+46if __name__ == "__main__":
+47  from torch_xla.core import xla_model as xm
+48  import torch
+49
+50  device = xm.xla_device()
+51
+52  A = torch.ones((512, 128), dtype=torch.bfloat16).to(device=device)
+53  B = torch.ones((128, 1024), dtype=torch.bfloat16).to(device=device)
+54
+55  # Launch kernel with a 2D grid
+56  result = matmul_128x128x512_spmd[4, 2](A, B)
+57
+58  print(result) # an implicit XLA barrier/mark-step
+

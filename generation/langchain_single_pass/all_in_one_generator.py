@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_aws import ChatBedrock
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 import boto3
 from botocore.config import Config
@@ -9,15 +8,15 @@ from langchain_core.runnables import RunnablePassthrough
 import os
 import re
 import traceback
+import json
 
 import datetime
-import json
 from langchain.memory import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
 from torch_xla.core import xla_model as xm
 
 
-from rate_limit_handler import retry_with_backoff, invoke_chain_with_retry
+from rate_limit_handler import retry_with_backoff
 
 
 from extraction import extract_kernel_from_llm_response, extract_reasoning, read_file, write_file, log_to_file, run, update_function_name_in_text
@@ -38,9 +37,11 @@ def log_iteration_data(
 ):
     """
     Log all data from a kernel generation iteration to a single consolidated file.
+    Also saves the complete kernel code to a separate file.
     """
     import json
     from datetime import datetime
+    import os
     
     # Create a structured dictionary for this iteration
     iteration_data = {
@@ -80,16 +81,8 @@ def log_iteration_data(
     if reasoning_text:
         formatted_output += f"REASONING:\n{reasoning_text}\n\n"
     
-    # Include truncated kernel code (first 50 lines with indicator if truncated)
-    kernel_lines = kernel_code.splitlines()
-    max_lines = 50
-    if len(kernel_lines) > max_lines:
-        kernel_preview = "\n".join(kernel_lines[:max_lines])
-        kernel_preview += f"\n\n... [truncated, {len(kernel_lines) - max_lines} more lines] ...\n"
-    else:
-        kernel_preview = kernel_code
-    
-    formatted_output += f"GENERATED KERNEL CODE:\n{kernel_preview}\n\n"
+    # Save the COMPLETE kernel code
+    formatted_output += f"GENERATED KERNEL CODE:\n{kernel_code}\n\n"
     
     # TEST RESULT SECTION
     formatted_output += f"--- TEST RESULT ---\n\n"
@@ -111,9 +104,122 @@ def log_iteration_data(
     with open(iteration_log_path, mode, encoding="utf-8") as log_file:
         log_file.write(formatted_output)
     
+    # Additionally, save the complete kernel code to a separate file
+    # Use the base path without extension to create new paths
+    base_path = os.path.splitext(iteration_log_path)[0]
+    kernel_path = f"{base_path}_iteration_{iteration_number}_kernel.py"
+    with open(kernel_path, "w", encoding="utf-8") as kernel_file:
+        kernel_file.write(kernel_code)
+    
     # Return the data dictionary for potential further processing
     return iteration_data
 
+
+# Direct Bedrock API call function
+def call_bedrock_api(prompt_text, temperature=0.85):
+    """Call Claude 3.7 Sonnet via Amazon Bedrock API."""
+    try:
+        # Configure boto3 client with custom retry settings
+        boto_config = Config(
+            region_name="us-west-2",
+            retries=dict(
+                max_attempts=60,
+                mode="adaptive",
+                total_max_attempts=60
+            )
+        )
+        
+        # Initialize the Bedrock Runtime client
+        bedrock = boto3.client(
+            'bedrock-runtime',
+            config=boto_config
+        )
+        
+        # Prepare the request payload
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 20000,
+            # "temperature": temperature,
+            # "top_p": 0.999,
+            # "top_k": 250,
+            # "stop_sequences": [],
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 4000
+            },
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt_text
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        # Make the API call
+        response = bedrock.invoke_model(
+            modelId="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(request_body)
+        )
+        
+        # Process the response
+        response_body = json.loads(response.get('body').read())
+        
+        # Extract the text content from the response
+        if "content" in response_body and len(response_body["content"]) > 0:
+            for content_item in response_body["content"]:
+                if content_item.get("type") == "text":
+                    return content_item.get("text", "")
+        
+        return ""
+        
+    except Exception as e:
+        print(f"Error calling Claude API: {e}")
+        traceback.print_exc()
+        return f"Error occurred: {str(e)}"
+
+
+# New direct invoke function with retry logic
+def invoke_with_retry(prompt_text, temperature=0.85, max_retries=5, initial_backoff=1):
+    """Invoke the Bedrock API with retry logic."""
+    for attempt in range(max_retries):
+        try:
+            return call_bedrock_api(prompt_text, temperature)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                backoff_time = initial_backoff * (2 ** attempt)  # Exponential backoff
+                print(f"Attempt {attempt+1} failed with error: {e}. Retrying in {backoff_time}s...")
+                import time
+                time.sleep(backoff_time)
+            else:
+                print(f"All {max_retries} attempts failed. Last error: {e}")
+                raise
+
+
+def extract_json_array(text):
+    """Clean up text to extract a JSON array."""
+    # Remove any non-JSON text before or after the array
+    text = text.strip()
+    # If text begins with characters before [, remove them
+    if '[' in text and text[0] != '[':
+        text = text[text.find('['):]
+    # If text has characters after the closing ], remove them
+    if ']' in text and text[-1] != ']':
+        text = text[:text.rfind(']')+1]
+    # If we still don't have a valid JSON looking text, try regex
+    if not (text.startswith('[') and text.endswith(']')):
+        import re
+        json_pattern = re.compile(r'\[.*?\]', re.DOTALL)
+        json_match = json_pattern.search(text)
+        if json_match:
+            text = json_match.group(0)
+    return text
 
 
 def generate_kernel_with_direct_docs_and_error_loop(
@@ -147,41 +253,9 @@ def generate_kernel_with_direct_docs_and_error_loop(
         f.write(f"Kernel module path: {kernel_module_path}\n\n")
     
     
-    # Initialize LLMs
-    query_llm = ChatOpenAI(
-        model="gpt-4o-mini", 
-        temperature=0.3
-    )
-    # kernel_llm = ChatOpenAI(
-    #     model="gpt-4o-mini", 
-    #     temperature=0.85
-    # )
-    # Configure boto3 client with custom retry settings
-    boto_config = Config(
-        region_name="us-west-2",
-        retries=dict(
-            max_attempts=60,
-            mode="adaptive",
-            total_max_attempts=60
-        )
-    )
-    
-    # Create bedrock client with custom config
-    bedrock_client = boto3.client(
-        "bedrock-runtime",
-        config=boto_config
-    )
-    
-    kernel_llm = ChatBedrock(
-        model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-        model_kwargs={"temperature": 0.85},
-        client=bedrock_client,
-        region_name="us-west-2"
-    )
-    
-    # Create user prompts
+     # Create user prompts
     base_prompt_file = "/home/ubuntu/torch2nki/prompts/base_user_prompt.txt"
-    numpy_prompt = f"Generate a concise NumPy kernel implementation for the '{kernel_func_name}' operation."
+    numpy_prompt = f"Generate a concise NumPy kernel implementation for the '{kernel_func_name}' operation. Implement tiling because the architecture can only handle at max (128,) size tensors for any operations."
     nki_prompt = f"""Generate a custom kernel for the '{kernel_func_name}' operation using AWS Neural Kernel Interface (NKI).
 The kernel should:
 - Use the proper NKI API integration.
@@ -213,58 +287,45 @@ Assume the input and output are single-dimensional tensors."""
 
     except Exception as e:
         print(f"Error creating kernels file: {e}")
-        
-    
+
     # Load the initial prompts
     system_prompt = read_file(system_prompt_path)
     user_prompt = read_file(user_prompt_path)
+    
+    
+    # Initialize LLMs
+    query_llm = ChatOpenAI(
+        model="gpt-4o-mini", 
+        temperature=0.3
+    )
 
-    # Get list of available functions
-    available_functions = get_available_functions(docs_dir)
-   
     # Initial kernel generation with direct documentation
     try:
         # Select relevant functions
-        
         selected_functions = select_relevant_functions(
             query_llm,
             user_prompt,
-            available_functions
+            get_available_functions(docs_dir)
         )
-        
     
         function_docs = load_function_documentation(docs_dir, selected_functions)
     
         # Initial kernel generation with function documentation
-        initial_generation_prompt = ChatPromptTemplate.from_template(
-            "{system_prompt}\n\n"
-            "Task: {user_prompt}\n\n"
-            "Function Documentation:\n{function_docs}\n\n"
-            "Generate a NKI kernel for the task."
+        initial_generation_prompt = (
+            f"{system_prompt}\n\n"
+            f"Task: {user_prompt}\n\n"
+            f"Function Documentation:\n{function_docs}\n\n"
+            f"Generate a NKI kernel for the task."
         )
         
         # Log the full prompt being sent to the LLM
-        full_prompt = initial_generation_prompt.format(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            function_docs=function_docs
-        )
+        full_prompt = initial_generation_prompt
         prompt_path = output_address + ".prompt_path.txt"
-        log_to_file(prompt_path, f"FULL PROMPT TO LLM:\n{full_prompt}\n", append = True)
-        
-        initial_kernel_chain = (
-            initial_generation_prompt 
-            | kernel_llm 
-            | StrOutputParser()
-        )
+        log_to_file(prompt_path, f"FULL PROMPT TO LLM:\n{full_prompt}\n", append=True)
         
         try:
-            initial_generation = invoke_chain_with_retry(initial_kernel_chain, {
-                "system_prompt": system_prompt,
-                "user_prompt": user_prompt,
-                "function_docs": function_docs
-            },
-        )
+            # Use direct API call with retry logic
+            initial_generation = invoke_with_retry(initial_generation_prompt, temperature=0.85)
         except Exception as e:
             print(f"Error in initial kernel generation: {e}")
             initial_generation = f"Error occurred: {str(e)}"
@@ -287,7 +348,7 @@ Assume the input and output are single-dimensional tensors."""
         previous_iteration_info = []
         
         # Create enhanced error re-injection prompt with error documentation and history
-        enhanced_error_reinject_prompt = ChatPromptTemplate.from_template(
+        enhanced_error_reinject_prompt_template = (
             "{system_prompt}\n\n"
             "Generate a new improved kernel for this task. Clearly explain your line of reasoning in one sentence, trying"
             "to keep it as brief as possible. Focus on explaining the exact change you will be making to the code."
@@ -315,13 +376,6 @@ Assume the input and output are single-dimensional tensors."""
             "--------------------------------------------------\n"
             "{function_docs}\n"
             "--------------------------------------------------\n\n"
-            
-        )
-        
-        enhanced_error_chain = (
-            enhanced_error_reinject_prompt 
-            | kernel_llm 
-            | StrOutputParser()
         )
         
         # Iterative error correction loop
@@ -361,40 +415,26 @@ Assume the input and output are single-dimensional tensors."""
             if not error_line and error_description:
                 print("\nCould not extract specific error details.")
 
-
             # Get all available error codes
             available_errors = get_available_error_codes(error_parser)
 
             # Select relevant errors using the LLM
-            error_selection_prompt = ChatPromptTemplate.from_template(
+            error_selection_prompt = (
                 "You are helping to identify relevant NKI error codes from error output.\n\n"
-                "Here is the error output:\n{error_message}\n\n"
-                "Available error codes:\n{error_list}\n\n"
+                f"Here is the error output:\n{error_message}\n\n"
+                f"Available error codes:\n{sorted(available_errors)}\n\n"
                 "Please identify the most relevant error codes in this output. Return your selection as a JSON list "
                 "of error codes (without the 'ERROR: ' prefix). For example: [\"INVALID_TYPE\", \"OUT_OF_BOUNDS\"]\n\n"
                 "Your entire response must be a valid JSON array. Do not include any explanations, headers, or text before or after the JSON."
                 "I repeat your entire response must be a valid JSON array. Do not deviate from this format"
             )
 
-            # Format error list for display
-            error_list = "\n".join(sorted(available_errors))
-
-            error_selection_chain = (
-                error_selection_prompt
-                | query_llm
-                | StrOutputParser()
-            )
-
             try:
-                error_response = invoke_chain_with_retry(error_selection_chain, {
-                    "error_message": previous_error_message,
-                    "error_list": error_list
-                },
-            )
+                # Use direct API call with retry logic
+                error_response = invoke_with_retry(error_selection_prompt, temperature=0.3)
             except Exception as e:
                 print(f"Error in error selection: {e}")
                 error_response = "[]"  # Default to empty list on error
-
 
             # Clean up and parse the response
             try:
@@ -425,7 +465,6 @@ Assume the input and output are single-dimensional tensors."""
                     print(f"Fallback parsing also failed: {fallback_error}")
                     selected_errors = []
 
-
             # Load documentation for selected errors
             error_documentation = load_error_documentation(error_parser, selected_errors)
             # Log the selected errors and their documentation
@@ -438,52 +477,22 @@ Assume the input and output are single-dimensional tensors."""
             if not selected_errors:
                 error_documentation = "No specific documentation found for the errors in the output. Please analyze the error message carefully."
             
-            additional_functions_prompt = ChatPromptTemplate.from_template(
+            additional_functions_prompt = (
                 "Based on the error message below, do we need to include documentation for any additional NKI functions "
                 "that weren't selected earlier?\n\n"
-                "Current functions: {current_functions}\n\n"
-                "Error message:\n{error_message}\n\n"
-                "Available functions: {all_functions}\n\n"
+                f"Current functions: {', '.join(selected_functions)}\n\n"
+                f"Error message:\n{previous_error_message}\n\n"
+                f"Available functions: {', '.join(get_available_functions(docs_dir))}\n\n"
                 "Return ONLY a JSON list of additional function names needed (without the 'nki_language_' prefix). "
                 "If no additional functions are needed, return an empty list [].\n\n"
                 "Your entire response must be a valid JSON array. Do not include any explanations, headers, or text before or after the JSON."
             )
 
-            additional_functions_chain = (
-                additional_functions_prompt 
-                | query_llm 
-                | StrOutputParser()
-            )
-
             try:
-                additional_response = invoke_chain_with_retry(additional_functions_chain, {
-                    "current_functions": ", ".join(selected_functions),
-                    "error_message": previous_error_message,
-                    "all_functions": ", ".join(available_functions)
-                },
-            )
+                # Use direct API call with retry logic
+                additional_response = invoke_with_retry(additional_functions_prompt, temperature=0.3)
             except Exception as e:
                 additional_response = "[]"  # Default to empty list on error
-
-
-            # Clean up the response to ensure it's valid JSON
-            def extract_json_array(text):
-                # Remove any non-JSON text before or after the array
-                text = text.strip()
-                # If text begins with characters before [, remove them
-                if '[' in text and text[0] != '[':
-                    text = text[text.find('['):]
-                # If text has characters after the closing ], remove them
-                if ']' in text and text[-1] != ']':
-                    text = text[:text.rfind(']')+1]
-                # If we still don't have a valid JSON looking text, try regex
-                if not (text.startswith('[') and text.endswith(']')):
-                    import re
-                    json_pattern = re.compile(r'\[.*?\]', re.DOTALL)
-                    json_match = json_pattern.search(text)
-                    if json_match:
-                        text = json_match.group(0)
-                return text
 
             try:
                 # Clean the response and try to parse it
@@ -498,6 +507,7 @@ Assume the input and output are single-dimensional tensors."""
                     additional_functions = json.loads(cleaned_response)
                 
                 # Only include valid functions that weren't already selected
+                available_functions = get_available_functions(docs_dir)
                 new_functions = [f for f in additional_functions 
                             if f in available_functions and f not in selected_functions]
                 
@@ -541,29 +551,22 @@ Assume the input and output are single-dimensional tensors."""
             
             # Generate improved kernel with error feedback, documentation, and history
             print(f"Generating improved kernel (iteration {iteration + 1})...")
-            
 
-            # Log the full error prompt being sent to the LLM
-            full_error_prompt = enhanced_error_reinject_prompt.format(
+            # Format the enhanced error prompt
+            enhanced_error_prompt = enhanced_error_reinject_prompt_template.format(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                iteration_history="",
+                iteration_history=iteration_history,
                 previous_error_message=previous_error_message,
                 function_docs=function_docs
             )
-            log_to_file(prompt_path, f"FULL ERROR PROMPT TO LLM:\n{full_error_prompt}\n", append=False)
             
-            
+            # Log the full error prompt being sent to the LLM
+            log_to_file(prompt_path, f"FULL ERROR PROMPT TO LLM:\n{enhanced_error_prompt}\n", append=False)
             
             try:
-                improved_generation = invoke_chain_with_retry(enhanced_error_chain, {
-                    "system_prompt": system_prompt,
-                    "user_prompt": user_prompt,
-                    "iteration_history": iteration_history,
-                    "previous_error_message": previous_error_message,
-                    "function_docs": function_docs
-                },
-            )
+                # Use direct API call with retry logic
+                improved_generation = invoke_with_retry(enhanced_error_prompt, temperature=0.85)
             except Exception as e:
                 improved_generation = f"Error occurred: {str(e)}"
                 
@@ -598,30 +601,26 @@ Assume the input and output are single-dimensional tensors."""
             
 
             if iteration > 0:  # Skip for the first iteration as we don't have a previous solution to compare
-                
-                
                 # Extract error line from old error message if possible
                 old_error_line, _ = extract_error_details(old_error_message)
                 new_error_line, _ = extract_error_details(error_message)
-
-                
                 
                 old_error_line_info = f"Error occurred at line: {old_error_line}" if old_error_line else "Error line could not be determined."
                 new_error_line_info = f"Error occurred at line: {new_error_line}" if new_error_line else "Error line could not be determined."
                 
-                change_report_prompt = ChatPromptTemplate.from_template(
+                change_report_prompt = (
                     "You are analyzing the results of changes made to fix errors in a NKI kernel.\n\n"
-                    "Previous error message:\n{old_error_message}\n\n"
-                    "Previous error line information:\n{old_error_line_info}\n\n"
-                    "Applied solution (reasoning):\n{reasoning}\n\n"
-                    "New error message after applying the solution:\n{new_error_message}\n\n"
-                    "New error line information:\n{new_error_line_info}\n\n"
+                    f"Previous error message:\n{old_error_message}\n\n"
+                    f"Previous error line information:\n{old_error_line_info}\n\n"
+                    f"Applied solution (reasoning):\n{reasoning_text}\n\n"
+                    f"New error message after applying the solution:\n{error_message}\n\n"
+                    f"New error line information:\n{new_error_line_info}\n\n"
                     "Please provide your analysis in the following JSON format:\n"
                     "```json\n"
-                    "{{\n"
+                    "{\n"
                     " \"correct\": boolean, // true if the fix resolved the initial problem, false otherwise\n"
                     " \"report\": \"string\" // brief explanation of why the solution worked or didn't work\n"
-                    "}}\n"
+                    "}\n"
                     "```\n\n"
                     "The 'correct' field should be true if the exact error we had last time has been fixed."
                     "it is still deemed correct even if a different error arises, we are just focusing on the "
@@ -630,20 +629,10 @@ Assume the input and output are single-dimensional tensors."""
                     "Keep your report brief and focused on the specific changes and their effects. This is important"
                     "remember to keep the report consise and focused on key words on why it worked or failed"
                 )
-                change_report_chain = (
-                    change_report_prompt
-                    | query_llm
-                    | StrOutputParser()
-                )
+                
                 try:
-                    change_report_json = invoke_chain_with_retry(change_report_chain, {
-                        "old_error_message": old_error_message,
-                        "old_error_line_info": old_error_line_info,
-                        "reasoning": reasoning_text,
-                        "new_error_message": error_message,
-                        "new_error_line_info": new_error_line_info
-                    },
-                )
+                    # Use direct API call with retry logic
+                    change_report_json = invoke_with_retry(change_report_prompt, temperature=0.3)
                 except Exception as e:
                     print(f"Error in change report generation: {e}")
                     change_report_json = '{"correct": false, "report": "Error occurred during report generation"}'
@@ -667,7 +656,6 @@ Assume the input and output are single-dimensional tensors."""
                     print("Failed to parse JSON response. Using default values.")
                     correct = False
                     report = change_report_json
-                
                 
                 # Add report to iteration history
                 previous_iteration_info.append(f"Change report: correct={correct}, report={report}")
@@ -716,26 +704,6 @@ Assume the input and output are single-dimensional tensors."""
         # Save the error
         with open(output_address, "w") as f:
             f.write(f"Error generating kernel: {str(e)}\n\n{error_details}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
@@ -831,135 +799,135 @@ if __name__ == "__main__":
         # "test_torch_euclidean_dist",
         # "test_torch_cosine_similarity",
         # "test_torch_pairwise_distance",
+        "test_torch_conv1d",
+        "test_torch_conv2d",
+        "test_torch_conv3d",
+        # "test_torch_conv_transpose2d",
+        # "test_torch_max_pool2d",
+        # "test_torch_avg_pool2d",
+        # "test_torch_softmax",
+        # "test_torch_log_softmax",
+        # "test_torch_max",
+        # "test_torch_min",
+        # "test_torch_sum",
+        # "test_torch_mean",
+        # "test_torch_var",
+        # "test_torch_std",
+        # "test_torch_norm",
+        # "test_torch_cumsum",
+        # "test_torch_cumprod",
+        # "test_torch_prod",
+        # "test_torch_round",
+        # "test_torch_floor",
+        # "test_torch_ceil",
+        # "test_torch_trunc",
+        # "test_torch_sign",
+        # "test_torch_where",
+        # "test_torch_eq",
+        # "test_torch_ne",
+        # "test_torch_gt",
+        # "test_torch_lt",
+        # "test_torch_clamp",
+        # "test_torch_sort",
+        # "test_torch_topk",
+        # "test_torch_kthvalue",
+        # "test_torch_median",
+        # "test_torch_mode",
+        # "test_torch_percentile",
+        # "test_torch_logsumexp",
+        # "test_torch_amax",
+        # "test_torch_amin",
+        # "test_torch_all",
+        # "test_torch_any",
+        # "test_torch_bincount",
+        # "test_torch_unique",
+        # "test_torch_unique_consecutive",
+        # "test_torch_inner",
+        # "test_torch_outer",
+        # "test_torch_dot",
+        # "test_torch_vdot",
+        # "test_torch_cross",
+        # "test_torch_matmul",
+        # "test_torch_mm",
+        # "test_torch_mv",
+        # "test_torch_bmm",
+        # "test_torch_tensordot",
+        # "test_torch_kron",
+        # "test_torch_hadamard",
+        # "test_torch_linalg_vecdot",
+        # "test_torch_linalg_multi_dot",
+        # "test_torch_qr",
+        # "test_torch_svd",
+        # "test_torch_inv",
+        # "test_torch_pinv",
+        # "test_torch_matrix_norm",
+        # "test_torch_vector_norm",
+        # "test_torch_cross",
+        # "test_torch_outer",
+        # "test_torch_tensordot",
+        # "test_torch_eigh",
+        # "test_torch_eig",
+        # "test_torch_slogdet",
+        # "test_torch_solve",
+        # "test_torch_lstsq",
+        # "test_torch_cholesky",
+        # "test_torch_lu",
+        # "test_torch_ldl_factor",
+        # "test_torch_triangular_solve",
+        # "test_torch_special_entr",
+        # "test_torch_special_i1",
+        # "test_torch_special_xlogy",
+        # "test_torch_special_logit",
+        # "test_torch_angle",
+        # "test_torch_polar",
+        # "test_torch_view_as_real",
+        # "test_torch_view_as_complex",
+        # "test_torch_copysign",
+        # "test_torch_nextafter",
+        # "test_torch_hypot",
+        # "test_torch_log1p",
+        # "test_torch_expm1",
+        # "test_torch_frexp",
+        # "test_torch_ldexp",
+        # "test_torch_logaddexp",
+        # "test_torch_logaddexp2",
+        # "test_torch_sinc",
+        # "test_torch_xlogy",
+        # "test_torch_edit_distance",
+        # "test_torch_hamming_distance",
+        # "test_torch_gelu",
+        # "test_torch_elu",
+        # "test_torch_selu",
+        # "test_torch_leaky_relu",
+        # "test_torch_hardswish",
+        # "test_torch_mse_loss",
+        # "test_torch_l1_loss",
+        # "test_torch_cross_entropy",
+        # "test_torch_nll_loss",
+        # "test_torch_binary_cross_entropy",
+        # "test_torch_hinge_embedding_loss",
+        # "test_torch_kl_div",
+        # "test_torch_smooth_l1_loss",
+        # "test_torch_cosine_embedding_loss",
+        # "test_torch_triplet_margin_loss",
+        # "test_torch_batch_norm",
+        # "test_torch_layer_norm",
+        # "test_torch_group_norm",
+        # "test_torch_instance_norm",
+        # "test_torch_dropout",
+        # "test_torch_alpha_dropout",
+        # "test_torch_feature_alpha_dropout",
+        # "test_torch_softshrink",
+        # "test_torch_euclidean_dist",
+        # "test_torch_cosine_similarity",
+        # "test_torch_pairwise_distance",
         # "test_torch_conv1d",
         # "test_torch_conv2d",
         # "test_torch_conv3d",
         # "test_torch_conv_transpose2d",
         # "test_torch_max_pool2d",
-        # "test_torch_avg_pool2d",
-        "test_torch_softmax",
-        "test_torch_log_softmax",
-        "test_torch_max",
-        "test_torch_min",
-        "test_torch_sum",
-        "test_torch_mean",
-        "test_torch_var",
-        "test_torch_std",
-        "test_torch_norm",
-        "test_torch_cumsum",
-        "test_torch_cumprod",
-        "test_torch_prod",
-        "test_torch_round",
-        "test_torch_floor",
-        "test_torch_ceil",
-        "test_torch_trunc",
-        "test_torch_sign",
-        "test_torch_where",
-        "test_torch_eq",
-        "test_torch_ne",
-        "test_torch_gt",
-        "test_torch_lt",
-        "test_torch_clamp",
-        "test_torch_sort",
-        "test_torch_topk",
-        "test_torch_kthvalue",
-        "test_torch_median",
-        "test_torch_mode",
-        "test_torch_percentile",
-        "test_torch_logsumexp",
-        "test_torch_amax",
-        "test_torch_amin",
-        "test_torch_all",
-        "test_torch_any",
-        "test_torch_bincount",
-        "test_torch_unique",
-        "test_torch_unique_consecutive",
-        "test_torch_inner",
-        "test_torch_outer",
-        "test_torch_dot",
-        "test_torch_vdot",
-        "test_torch_cross",
-        "test_torch_matmul",
-        "test_torch_mm",
-        "test_torch_mv",
-        "test_torch_bmm",
-        "test_torch_tensordot",
-        "test_torch_kron",
-        "test_torch_hadamard",
-        "test_torch_linalg_vecdot",
-        "test_torch_linalg_multi_dot",
-        "test_torch_qr",
-        "test_torch_svd",
-        "test_torch_inv",
-        "test_torch_pinv",
-        "test_torch_matrix_norm",
-        "test_torch_vector_norm",
-        "test_torch_cross",
-        "test_torch_outer",
-        "test_torch_tensordot",
-        "test_torch_eigh",
-        "test_torch_eig",
-        "test_torch_slogdet",
-        "test_torch_solve",
-        "test_torch_lstsq",
-        "test_torch_cholesky",
-        "test_torch_lu",
-        "test_torch_ldl_factor",
-        "test_torch_triangular_solve",
-        "test_torch_special_entr",
-        "test_torch_special_i1",
-        "test_torch_special_xlogy",
-        "test_torch_special_logit",
-        "test_torch_angle",
-        "test_torch_polar",
-        "test_torch_view_as_real",
-        "test_torch_view_as_complex",
-        "test_torch_copysign",
-        "test_torch_nextafter",
-        "test_torch_hypot",
-        "test_torch_log1p",
-        "test_torch_expm1",
-        "test_torch_frexp",
-        "test_torch_ldexp",
-        "test_torch_logaddexp",
-        "test_torch_logaddexp2",
-        "test_torch_sinc",
-        "test_torch_xlogy",
-        "test_torch_edit_distance",
-        "test_torch_hamming_distance",
-        "test_torch_gelu",
-        "test_torch_elu",
-        "test_torch_selu",
-        "test_torch_leaky_relu",
-        "test_torch_hardswish",
-        "test_torch_mse_loss",
-        "test_torch_l1_loss",
-        "test_torch_cross_entropy",
-        "test_torch_nll_loss",
-        "test_torch_binary_cross_entropy",
-        "test_torch_hinge_embedding_loss",
-        "test_torch_kl_div",
-        "test_torch_smooth_l1_loss",
-        "test_torch_cosine_embedding_loss",
-        "test_torch_triplet_margin_loss",
-        "test_torch_batch_norm",
-        "test_torch_layer_norm",
-        "test_torch_group_norm",
-        "test_torch_instance_norm",
-        "test_torch_dropout",
-        "test_torch_alpha_dropout",
-        "test_torch_feature_alpha_dropout",
-        "test_torch_softshrink",
-        "test_torch_euclidean_dist",
-        "test_torch_cosine_similarity",
-        "test_torch_pairwise_distance",
-        "test_torch_conv1d",
-        "test_torch_conv2d",
-        "test_torch_conv3d",
-        "test_torch_conv_transpose2d",
-        "test_torch_max_pool2d",
-        "test_torch_avg_pool2d"
-    ]
+        # "test_torch_avg_pool2d"
+    ]   
     
     all_operator_names = [test_name.split("test_torch_")[1] for test_name in all_test_names]
 
@@ -1004,7 +972,8 @@ if __name__ == "__main__":
     ]   
     
     multi_element_operators = [
-        "softmax", "log_softmax", "max", "min",
+        # "softmax", "log_softmax",
+        "max", "min",
         "sum",
         "mean", "var", "std", "norm",
         "cumsum", "cumprod", "prod", "round", "floor", "ceil", "trunc", "sign",
@@ -1014,8 +983,8 @@ if __name__ == "__main__":
     ]
 
     multi_element_test_names = [
-        "test_torch_softmax",
-        "test_torch_log_softmax",
+        # "test_torch_softmax",
+        # "test_torch_log_softmax",
         "test_torch_max",
         "test_torch_min",
         "test_torch_sum", # doesn't generate the whole kernel for some reason
@@ -1106,10 +1075,10 @@ if __name__ == "__main__":
     # ]
 
     product_test_names = [
-        "test_torch_ctc"
+        "test_torch_sort"
     ]
     product_operators = [
-        "ctc"
+        "sort"
     ]
 
 
@@ -1130,13 +1099,7 @@ if __name__ == "__main__":
         test_name = all_test_names[i]
         system_prompt_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_prompts/system_prompt_langchain.txt"
         user_prompt_path = f"/home/ubuntu/torch2nki/prompts/{operator}_nki_prompt.txt"
-        output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.txt"
-        kernel_module_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel.py"
-        test_script_output = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_error_message.txt"
-        reasoning_log_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_reasoning_log.txt"
-        error_doc_path = f"/home/ubuntu/torch2nki/documentation/nki_documentation/nki_error_messages.txt"
-        docs_dir = f"/home/ubuntu/torch2nki/documentation/nki_documentation/nki_language_apis_parsed"
-        kernel_func_name = f"nki_{operator}"
+        
         # Get credentials
         pinecone_api_key = os.environ.get('PINECONE_API_KEY')
         pinecone_index_name = os.environ.get('PINECONE_INDEX_NAME')
@@ -1146,7 +1109,17 @@ if __name__ == "__main__":
         result = False
         ctr = 0
 
-        while ctr < 1:
+        while ctr < 30:
+            output_address = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel_attempt_{ctr}.txt"
+            kernel_module_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_nki_kernel_attempt_{ctr}.py"
+            test_script_output = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_error_message_attempt_{ctr}.txt"
+            reasoning_log_path = f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/{operator}_reasoning_log_attempt_{ctr}.txt"
+            
+            # These paths stay the same
+            error_doc_path = f"/home/ubuntu/torch2nki/documentation/nki_documentation/nki_error_messages.txt"
+            docs_dir = f"/home/ubuntu/torch2nki/documentation/nki_documentation/nki_language_apis_parsed"
+            kernel_func_name = f"nki_{operator}"
+            
             result = generate_kernel_with_direct_docs_and_error_loop(
                 kernel_func_name,
                 system_prompt_path,
@@ -1158,18 +1131,14 @@ if __name__ == "__main__":
                 reasoning_log_path,
                 error_doc_path,
                 docs_dir,
-                max_iterations=10
+                max_iterations=15
             )
             if result:
                 print(result)
                 tests_passed_dict[operator] = True
-                with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:
-                    json.dump(tests_passed_dict, f)
                 break
             else:
                 tests_passed_dict[operator] = False
-                with open(f"/home/ubuntu/torch2nki/generation/langchain_single_pass/langchain_files/langchain_outputs/test_passed_dict.json", "w") as f:
-                    json.dump(tests_passed_dict, f)
 
             ctr += 1
 
