@@ -1,8 +1,0 @@
-Running NKI kernel simulation for lt...
-
---- Results Comparison ---
-NKI output (first 5): [1 1 0 1 0]
-PyTorch output (first 5): [ True  True False  True False]
-
-✅ SUCCESS: NKI and PyTorch outputs match!
-

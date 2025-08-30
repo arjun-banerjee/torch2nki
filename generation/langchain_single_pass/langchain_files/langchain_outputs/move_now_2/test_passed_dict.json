@@ -1,1 +1,0 @@
-{"add": true, "sub": true, "mul": true, "div": true, "abs": true, "exp": true, "log": true, "sqrt": true, "rsqrt": true, "pow": true, "sin": true, "cos": true, "tan": true, "asin": false, "acos": false, "atan": true, "sinh": true, "cosh": true, "tanh": true, "sigmoid": true, "relu": true, "threshold": true}

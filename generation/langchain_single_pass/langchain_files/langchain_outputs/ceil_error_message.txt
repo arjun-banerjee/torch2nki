@@ -1,3 +1,0 @@
-Checking correctness of ceil operation...
-NKI and Torch match!
-

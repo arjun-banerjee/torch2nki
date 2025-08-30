@@ -1,3 +1,0 @@
-Checking correctness of clamping operation...
-NKI and Torch match!
-

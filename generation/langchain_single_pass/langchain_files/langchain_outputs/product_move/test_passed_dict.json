@@ -1,1 +1,0 @@
-{"inner": true, "outer": true, "dot": true, "vdot": true, "cross": true, "matmul": true, "mm": true, "mv": true, "bmm": true, "tensordot": false, "einsum": false, "kron": false, "hadamard": true, "linalg_vecdot": false, "linalg_multi_dot": false}

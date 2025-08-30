@@ -1,3 +1,0 @@
-Checking correctness of floor operation...
-NKI and Torch match!
-
